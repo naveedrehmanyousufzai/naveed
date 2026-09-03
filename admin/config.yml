@@ -1,0 +1,103 @@
+# The one line you MUST change: put your GitHub username and repo name below.
+backend:
+  name: github
+  repo: YOUR-GITHUB-USERNAME/naveed
+  branch: main
+
+media_folder: "images"
+public_folder: "images"
+
+collections:
+  - name: results
+    label: Tournament results
+    files:
+      - name: results
+        label: All results
+        file: content/results.json
+        fields:
+          - label: Results
+            name: items
+            widget: list
+            label_singular: Result
+            summary: "{{fields.year}} — {{fields.tournament}} — {{fields.result}}"
+            fields:
+              - { label: Year, name: year, widget: string }
+              - { label: Tournament, name: tournament, widget: string }
+              - { label: Venue, name: venue, widget: string }
+              - { label: Result, name: result, widget: string, hint: "Winner, Semi-final, Round of 16, etc." }
+              - { label: Was this a win?, name: win, widget: boolean, default: false }
+
+  - name: news
+    label: Press coverage
+    files:
+      - name: news
+        label: All coverage
+        file: content/news.json
+        fields:
+          - label: Articles
+            name: items
+            widget: list
+            label_singular: Article
+            summary: "{{fields.source}} — {{fields.title}}"
+            fields:
+              - { label: Publication, name: source, widget: string }
+              - { label: Headline, name: title, widget: string }
+              - { label: Photo, name: image, widget: image, required: false }
+              - { label: Link, name: url, widget: string, required: false, default: "#" }
+
+  - name: products
+    label: Store
+    files:
+      - name: products
+        label: All products
+        file: content/products.json
+        fields:
+          - label: Products
+            name: items
+            widget: list
+            label_singular: Product
+            summary: "{{fields.name}} — PKR {{fields.price}}"
+            fields:
+              - { label: Name, name: name, widget: string }
+              - { label: Price in PKR, name: price, widget: string, hint: "Numbers only, e.g. 3,500" }
+              - label: Category
+                name: category
+                widget: select
+                options: ["apparel", "gear", "coaching"]
+              - { label: Photo, name: image, widget: image, required: false }
+              - { label: Description, name: description, widget: text, required: false }
+              - { label: Sold out, name: sold_out, widget: boolean, default: false }
+
+  - name: home
+    label: Home page
+    files:
+      - name: home
+        label: Home page content
+        file: content/home.json
+        fields:
+          - label: Career numbers
+            name: stats
+            widget: list
+            max: 4
+            min: 4
+            fields:
+              - { label: Number, name: number, widget: string }
+              - { label: Label, name: label, widget: string }
+          - label: Featured result
+            name: featured
+            widget: object
+            fields:
+              - { label: Date and place, name: meta, widget: string }
+              - { label: Heading, name: title, widget: string }
+              - { label: Description, name: text, widget: text }
+              - { label: Photo, name: image, widget: image, required: false }
+
+  - name: settings
+    label: Settings
+    files:
+      - name: settings
+        label: Contact details
+        file: content/settings.json
+        fields:
+          - { label: WhatsApp number, name: whatsapp, widget: string, hint: "Country code, no plus or spaces. e.g. 923001234567" }
+          - { label: Email, name: email, widget: string }

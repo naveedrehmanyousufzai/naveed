@@ -1,0 +1,578 @@
+/* ============================================================
+   Naveed Rehman — design system
+   Grounded in the squash court: plaster walls, red court lines,
+   maple floor. Red is structural (it marks lines), never decorative.
+   ============================================================ */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+  /* Brand — sampled directly from the NR mark */
+  --ink:      #111111;   /* logo black                          */
+  --gold:     #D4AF37;   /* logo gold                           */
+
+  --paper:    #F4F2ED;   /* page background, warm neutral       */
+  --card:     #FFFFFF;   /* raised surfaces                     */
+  --ash:      #6B6963;   /* secondary text                      */
+  --hairline: #DAD6CD;   /* quiet borders                       */
+  --gold-ink: #8A6D14;   /* gold, darkened for text on light    */
+
+  --gutter: 24px;
+  --max: 1180px;
+
+  /* type scale */
+  --t-xs: 13px;
+  --t-sm: 15px;
+  --t-md: 17px;
+  --t-lg: 22px;
+  --t-xl: 34px;
+  --t-2xl: 52px;
+  --t-3xl: clamp(56px, 12vw, 132px);
+}
+
+/* ---------- 2. Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+  font-size: var(--t-md);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+h1, h2, h3, h4 {
+  font-family: 'Archivo', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  margin: 0;
+}
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+
+:focus-visible {
+  outline: 3px solid var(--gold-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- 3. Layout primitives ---------- */
+.wrap {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Section rule — the segmented baseline bars from under the NR mark.
+   Four black bars with gaps, redrawn as a repeating gradient. */
+.rule {
+  border: 0;
+  height: 6px;
+  margin: 0;
+  background:
+    repeating-linear-gradient(to right,
+      var(--ink) 0, var(--ink) 148px,
+      transparent 148px, transparent 164px);
+}
+.rule--gold {
+  background:
+    repeating-linear-gradient(to right,
+      var(--gold) 0, var(--gold) 148px,
+      transparent 148px, transparent 164px);
+}
+
+.section { padding: 88px 0; }
+.section--tight { padding: 56px 0; }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 18px;
+  margin-bottom: 40px;
+}
+.section-head h2 {
+  font-size: var(--t-xl);
+}
+.section-head a {
+  font-size: var(--t-sm);
+  text-decoration: none;
+  border-bottom: 3px solid var(--gold);
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+/* ---------- 4. Navigation ---------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+}
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+.nav__mark { display: block; line-height: 0; }
+.nav__mark img { height: 38px; width: auto; }
+
+.nav__links {
+  display: flex;
+  gap: 30px;
+  font-size: var(--t-sm);
+}
+.nav__links a {
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+.nav__links a:hover { border-bottom-color: var(--hairline); }
+.nav__links a[aria-current='page'] { border-bottom-color: var(--gold); }
+
+.nav__toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--hairline);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .nav__links {
+    display: none;
+    position: absolute;
+    left: 0; right: 0; top: 68px;
+    flex-direction: column;
+    gap: 0;
+    background: var(--paper);
+    border-bottom: 4px solid var(--gold);
+    padding: 8px var(--gutter) 20px;
+  }
+  .nav__links.is-open { display: flex; }
+  .nav__links a {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: var(--t-lg);
+  }
+  .nav__toggle { display: block; }
+}
+
+/* ---------- 5. Hero ----------
+   The front wall of a squash court, drawn to scale in CSS:
+   out-line across the top, service line, and the tin along the
+   bottom. The name sits on the wall where a ball would strike. */
+.hero {
+  position: relative;
+  background: var(--card);
+  border-bottom: 14px solid var(--gold); /* the tin */
+  overflow: hidden;
+}
+.hero__inner {
+  position: relative;
+  z-index: 2;
+  padding: 96px 0 104px;
+}
+.hero__court {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+/* out-line (top) and service line, in court red */
+.hero__court::before,
+.hero__court::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 2px solid var(--gold);
+}
+.hero__court::before { top: 58px; }
+.hero__court::after  { bottom: 132px; }
+
+.hero__role {
+  font-size: var(--t-sm);
+  color: var(--ash);
+  margin-bottom: 22px;
+  max-width: 34ch;
+}
+.hero h1 {
+  font-size: var(--t-3xl);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.86;
+}
+.hero h1 em {
+  font-style: normal;
+  display: block;
+}
+.hero__lede {
+  margin-top: 30px;
+  max-width: 46ch;
+  font-size: var(--t-lg);
+  line-height: 1.45;
+  color: var(--ash);
+}
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 38px;
+}
+
+/* ---------- 6. Buttons ---------- */
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  padding: 14px 26px;
+  text-decoration: none;
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+}
+.btn--solid { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+.btn--solid:hover { background: var(--ink); border-color: var(--ink); color: var(--gold); }
+.btn--ghost { background: transparent; color: var(--ink); }
+.btn--ghost:hover { background: var(--ink); color: var(--gold); }
+.btn--block { display: block; width: 100%; text-align: center; }
+
+/* ---------- 7. Record strip ----------
+   Career record, set as a scoreboard row rather than four cards. */
+.record {
+  background: var(--ink);
+  color: var(--paper);
+}
+.record__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.record__cell {
+  padding: 40px 20px;
+  border-left: 1px solid #2C2F32;
+}
+.record__cell:first-child { border-left: 0; padding-left: 0; }
+.record__num {
+  color: var(--gold);
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: var(--t-2xl);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.record__label {
+  font-size: var(--t-xs);
+  color: #9A9DA1;
+  margin-top: 10px;
+}
+@media (max-width: 760px) {
+  .record__grid { grid-template-columns: repeat(2, 1fr); }
+  .record__cell { padding: 28px 16px; border-top: 1px solid #2C2F32; }
+  .record__cell:nth-child(-n+2) { border-top: 0; }
+  .record__cell:nth-child(odd) { border-left: 0; padding-left: 0; }
+}
+
+/* ---------- 8. Featured result ---------- */
+.featured {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+.featured__img {
+  aspect-ratio: 4 / 3;
+  background: var(--hairline);
+  position: relative;
+}
+.featured__meta {
+  font-size: var(--t-xs);
+  color: var(--ash);
+  margin-bottom: 14px;
+}
+.featured h3 { font-size: var(--t-xl); margin-bottom: 18px; }
+.featured p { color: var(--ash); }
+@media (max-width: 860px) {
+  .featured { grid-template-columns: 1fr; gap: 28px; }
+}
+
+/* ---------- 9. Cards (news) ---------- */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+@media (max-width: 860px) { .grid-3 { grid-template-columns: 1fr; gap: 36px; } }
+
+.card { text-decoration: none; display: block; }
+.card__img {
+  aspect-ratio: 16 / 10;
+  background: var(--hairline);
+  margin-bottom: 16px;
+}
+.card__meta { font-size: var(--t-xs); color: var(--ash); margin-bottom: 8px; }
+.card h3 { font-size: var(--t-lg); font-weight: 700; }
+.card:hover h3 { text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+
+/* ---------- 10. Shop ---------- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  font-size: var(--t-sm);
+  padding-top: 18px;
+  margin-bottom: 40px;
+}
+.filters button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 4px 0;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--ash);
+  cursor: pointer;
+}
+.filters button.is-active { color: var(--ink); border-bottom-color: var(--gold); }
+
+.grid-products {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px 28px;
+}
+@media (max-width: 860px) { .grid-products { grid-template-columns: repeat(2, 1fr); gap: 28px 16px; } }
+
+.product { text-decoration: none; display: block; }
+.product__img {
+  aspect-ratio: 1;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--hairline);
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 40px;
+}
+.product__tag {
+  position: absolute;
+  top: 0; left: 0;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  padding: 4px 10px;
+}
+.product__name { margin-top: 14px; font-size: var(--t-sm); font-weight: 600; }
+.product__price { font-size: var(--t-sm); color: var(--ash); }
+.product:hover .product__img { border-color: var(--gold); }
+.product--out .product__name,
+.product--out .product__price { color: var(--hairline); }
+
+/* ---------- 11. Product detail ---------- */
+.pdp {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 56px;
+  padding-top: 40px;
+}
+.pdp__gallery { display: grid; gap: 12px; }
+.pdp__main {
+  aspect-ratio: 1;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  display: grid;
+  place-items: center;
+  color: var(--hairline);
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 64px;
+}
+.pdp__thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.pdp__thumb {
+  aspect-ratio: 1;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+}
+.pdp__thumb.is-active { border-color: var(--gold); border-width: 2px; }
+
+.pdp h1 { font-size: var(--t-xl); margin-bottom: 12px; }
+.pdp__price { font-size: var(--t-lg); margin-bottom: 26px; }
+.pdp__desc { color: var(--ash); margin-bottom: 30px; max-width: 52ch; }
+
+.sizes { display: flex; gap: 10px; margin-bottom: 12px; }
+.sizes button {
+  width: 52px; height: 52px;
+  background: none;
+  border: 1px solid var(--hairline);
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.sizes button.is-active { border-color: var(--gold); border-width: 3px; }
+.sizes button:disabled { color: var(--hairline); cursor: not-allowed; text-decoration: line-through; }
+.field-note { font-size: var(--t-xs); color: var(--ash); margin-bottom: 26px; }
+
+.pay-note {
+  font-size: var(--t-xs);
+  color: var(--ash);
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+@media (max-width: 860px) {
+  .pdp { grid-template-columns: 1fr; gap: 32px; }
+}
+
+/* ---------- 12. Results table ---------- */
+.years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 18px;
+  margin-bottom: 34px;
+}
+.years button {
+  background: none;
+  border: 1px solid var(--hairline);
+  padding: 7px 15px;
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.years button.is-active { border-color: var(--gold); background: var(--gold); color: var(--ink); }
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ash);
+  font-size: var(--t-xs);
+  padding: 0 16px 12px 0;
+  border-bottom: 3px solid var(--ink);
+}
+.table td {
+  padding: 16px 16px 16px 0;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+.table tbody tr:hover { background: var(--card); }
+.table .win { font-weight: 600; }
+.table .win::before {
+  content: '';
+  display: inline-block;
+  width: 9px; height: 9px;
+  background: var(--gold);
+  margin-right: 9px;
+  vertical-align: 1px;
+}
+@media (max-width: 700px) {
+  .table thead { display: none; }
+  .table tr { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 16px 0; border-bottom: 1px solid var(--hairline); }
+  .table td { border: 0; padding: 0; }
+  .table td[data-col='tournament'] { grid-column: 1; font-weight: 600; font-size: var(--t-md); }
+  .table td[data-col='result'] { grid-column: 2; grid-row: 1; }
+  .table td[data-col='year'],
+  .table td[data-col='venue'] { color: var(--ash); font-size: var(--t-xs); }
+  .table td[data-col='venue'] { grid-column: 1 / -1; }
+}
+
+/* ---------- 13. Prose (about) ---------- */
+.prose { max-width: 62ch; }
+.prose p + p { margin-top: 22px; }
+.prose h2 { font-size: var(--t-lg); margin: 48px 0 16px; }
+
+.timeline { border-top: 3px solid var(--ink); margin-top: 20px; }
+.timeline li {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.timeline .yr { font-family: 'Archivo', sans-serif; font-weight: 800; color: var(--gold-ink); }
+
+/* ---------- 14. Footer ---------- */
+.footer {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 64px 0 32px;
+  margin-top: 96px;
+}
+.footer__grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: 40px;
+}
+.footer h4 { font-size: var(--t-sm); font-weight: 700; margin-bottom: 16px; }
+.footer a { color: var(--paper); text-decoration: none; display: block; padding: 5px 0; font-size: var(--t-sm); }
+.footer a:hover { color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold); }
+.footer__note {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid #2C2F32;
+  font-size: var(--t-xs);
+  color: #9A9DA1;
+}
+.footer__blurb { color: #9A9DA1; font-size: var(--t-sm); max-width: 34ch; }
+@media (max-width: 760px) {
+  .footer__grid { grid-template-columns: 1fr; gap: 32px; }
+}
+
+/* ---------- 15. Page header (inner pages) ---------- */
+.pagehead { padding: 56px 0 0; }
+.pagehead h1 { font-size: var(--t-2xl); }
+.pagehead p { color: var(--ash); margin-top: 16px; max-width: 52ch; }
+
+/* ---------- 16. Footer mark ---------- */
+.footer__logo { height: 52px; width: auto; margin-bottom: 20px; }
+
+/* ---------- 17. Prose links ---------- */
+.prose a { color: var(--gold-ink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* Segmented rule shortens on small screens so the gaps still read */
+@media (max-width: 700px) {
+  .rule, .rule--gold { background-size: 82px 6px; background-repeat: repeat-x; }
+  .rule { background-image: linear-gradient(to right, var(--ink) 0 68px, transparent 68px 82px); }
+  .rule--gold { background-image: linear-gradient(to right, var(--gold) 0 68px, transparent 68px 82px); }
+}
+
+/* ---------- 18. Photos in placeholder slots ----------
+   Lets an <img> replace any grey box without distorting.
+   The slot keeps its shape; the photo is cropped to fit. */
+img.featured__img,
+img.card__img,
+img.product__img,
+img.pdp__main,
+img.hero__photo {
+  width: 100%;
+  object-fit: cover;
+  background: var(--hairline);
+}
+
+/* Optional hero photograph, sits behind the name */
+.hero--photo { background: var(--ink); }
+.hero--photo .hero__photo {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  z-index: 0;
+  opacity: .42;
+}
+.hero--photo .hero__inner { color: var(--card); }
+.hero--photo .hero__role,
+.hero--photo .hero__lede { color: #C9C6BF; }
+.hero--photo .btn--ghost { color: var(--card); border-color: var(--card); }
+.hero--photo .btn--ghost:hover { background: var(--card); color: var(--ink); }

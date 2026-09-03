@@ -1,0 +1,67 @@
+{
+  "items": [
+    {
+      "year": "2026",
+      "tournament": "PSA Challenger, Quetta",
+      "venue": "Quetta, PK",
+      "result": "Winner",
+      "win": true
+    },
+    {
+      "year": "2026",
+      "tournament": "KPT Open",
+      "venue": "Karachi, PK",
+      "result": "Semi-final",
+      "win": false
+    },
+    {
+      "year": "2026",
+      "tournament": "Sindh Open",
+      "venue": "Karachi, PK",
+      "result": "Winner",
+      "win": true
+    },
+    {
+      "year": "2025",
+      "tournament": "Naya Nazimabad Championship",
+      "venue": "Karachi, PK",
+      "result": "Runner-up",
+      "win": false
+    },
+    {
+      "year": "2025",
+      "tournament": "National Circuit, Leg 3",
+      "venue": "Lahore, PK",
+      "result": "Quarter-final",
+      "win": false
+    },
+    {
+      "year": "2025",
+      "tournament": "Punjab Open",
+      "venue": "Lahore, PK",
+      "result": "Winner",
+      "win": true
+    },
+    {
+      "year": "2024",
+      "tournament": "Islamabad International",
+      "venue": "Islamabad, PK",
+      "result": "Semi-final",
+      "win": false
+    },
+    {
+      "year": "2019",
+      "tournament": "Mississauga Squash Open",
+      "venue": "Ontario, CA",
+      "result": "Pre-quarter-final",
+      "win": false
+    },
+    {
+      "year": "2019",
+      "tournament": "Inter-school Championship",
+      "venue": "Karachi, PK",
+      "result": "Winner",
+      "win": true
+    }
+  ]
+}

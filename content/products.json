@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "name": "Match training tee",
+      "price": "3,500",
+      "category": "apparel",
+      "image": "",
+      "description": "Lightweight training tee in the club colours.",
+      "sold_out": false
+    },
+    {
+      "name": "Signed match ball",
+      "price": "2,000",
+      "category": "gear",
+      "image": "",
+      "description": "Double-yellow-dot ball, signed on the seam.",
+      "sold_out": false
+    },
+    {
+      "name": "Court-worn racket, Quetta 2026",
+      "price": "45,000",
+      "category": "gear",
+      "image": "",
+      "description": "The racket used through the final in Quetta. Signed on the throat, sold with a photograph of the match. One available.",
+      "sold_out": false
+    },
+    {
+      "name": "Private coaching, one hour",
+      "price": "6,000",
+      "category": "coaching",
+      "image": "",
+      "description": "One-to-one session in Karachi. Times arranged over WhatsApp.",
+      "sold_out": false
+    },
+    {
+      "name": "Training shorts",
+      "price": "3,200",
+      "category": "apparel",
+      "image": "",
+      "description": "Match shorts with side pockets.",
+      "sold_out": true
+    }
+  ]
+}
