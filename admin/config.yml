@@ -1,7 +1,7 @@
 # The one line you MUST change: put your GitHub username and repo name below.
 backend:
   name: github
-  repo: YOUR-GITHUB-USERNAME/naveed
+    repo: naveedrehmanyousufzai/naveed
   branch: main
 
 media_folder: "images"
