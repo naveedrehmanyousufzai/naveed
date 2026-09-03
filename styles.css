@@ -199,7 +199,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   border-top: 2px solid var(--gold);
 }
 .hero__court::before { top: 58px; }
-.hero__court::after  { bottom: 132px; }
+.hero__court::after  { bottom: 45px; }
 
 .hero__role {
   font-size: var(--t-sm);
