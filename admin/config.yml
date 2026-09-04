@@ -3,6 +3,7 @@ backend:
   name: github
   repo: naveedrehmanyousufzai/naveed
   branch: main
+  base_url: https://sveltia-cms-auth.nrehmanyousufzai.workers.dev
 
 media_folder: "images"
 public_folder: "images"
