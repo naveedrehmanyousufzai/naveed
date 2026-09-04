@@ -87,4 +87,4 @@ app/globals.css      ← styles.css as-is
 
 Rules when converting: `class` becomes `className`, every tag closes, and any
 file using `useState` or an `onClick` needs `'use client'` on line one. The CSS
-does not change at all. 
+does not change at all.  
