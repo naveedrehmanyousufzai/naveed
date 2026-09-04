@@ -204,7 +204,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .hero__role {
   font-size: var(--t-sm);
   color: var(--ash);
-    margin-top: 26px;
+  margin-top: 26px;
   margin-bottom: 0;
   max-width: 34ch;
 }
@@ -579,3 +579,45 @@ img.hero__photo {
 .hero--photo .hero__lede { color: #C9C6BF; }
 .hero--photo .btn--ghost { color: var(--card); border-color: var(--card); }
 .hero--photo .btn--ghost:hover { background: var(--card); color: var(--ink); }
+
+/* ---------- 19. Phone spacing ---------- */
+@media (max-width: 600px) {
+  :root { --gutter: 20px; }
+  .hero__inner { padding: 64px 0 72px; }
+  .hero h1 { letter-spacing: -0.03em; }
+  .record__cell { padding-left: 16px; padding-right: 16px; }
+  .record__cell:first-child,
+  .record__cell:nth-child(odd) { padding-left: 16px; }
+  .footer__grid { padding-right: 8px; }
+  .pagehead { padding-top: 40px; }
+  .section { padding: 64px 0; }
+}
+
+/* ---------- 20. Hamburger menu icon ----------
+   Three bars that fold into an X when the menu opens. */
+.nav__toggle {
+  width: 44px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.nav__toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--ink);
+  margin-left: auto;
+  transition: transform .2s ease, opacity .2s ease;
+}
+@media (max-width: 760px) {
+  .nav__toggle { display: flex; }
+}
+.nav__toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav__toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav__toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
