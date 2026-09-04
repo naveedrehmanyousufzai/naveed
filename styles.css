@@ -26,7 +26,7 @@
   --t-lg: 22px;
   --t-xl: 34px;
   --t-2xl: 52px;
-  --t-3xl: clamp(56px, 12vw, 132px);
+  --t-3xl: clamp(40px, 13vw, 132px);
 }
 
 /* ---------- 2. Reset ---------- */
@@ -175,7 +175,7 @@ ul { margin: 0; padding: 0; list-style: none; }
    bottom. The name sits on the wall where a ball would strike. */
 .hero {
   position: relative;
-  background: var(--card);
+  background: var(--paper);
   border-bottom: 14px solid var(--gold); /* the tin */
   overflow: hidden;
 }
@@ -198,13 +198,14 @@ ul { margin: 0; padding: 0; list-style: none; }
   left: 0; right: 0;
   border-top: 2px solid var(--gold);
 }
-.hero__court::before { top: 58px; }
-.hero__court::after  { bottom: 45px; }
+.hero__court::before { display: none; }
+.hero__court::after  { bottom: 48px; }
 
 .hero__role {
   font-size: var(--t-sm);
   color: var(--ash);
-  margin-bottom: 22px;
+    margin-top: 26px;
+  margin-bottom: 0;
   max-width: 34ch;
 }
 .hero h1 {
@@ -212,6 +213,8 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-weight: 900;
   letter-spacing: -0.05em;
   line-height: 0.86;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 .hero h1 em {
   font-style: normal;
