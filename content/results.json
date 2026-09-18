@@ -9,44 +9,30 @@
     },
     {
       "year": "2026",
+      "tournament": "Naya Nazimabad Independence Championship",
+      "venue": "Karachi, PK",
+      "result": "Winner",
+      "win": true
+    },
+    {
+      "year": "2026",
       "tournament": "2ND RCHS PSA SATELLITE",
       "venue": "Karachi, PK",
-      "result": "Semi-final",
+      "result": "Quarter Final",
       "win": false
     },
     {
       "year": "2026",
-      "tournament": "Sindh Open",
+      "tournament": "2ND PUBLIC SCHOOL HYDERABAD PSA SATELLITE",
       "venue": "Karachi, PK",
-      "result": "Winner",
-      "win": true
+      "result": "Quarter Final",
+      "win": false
     },
     {
       "year": "2025",
-      "tournament": "Naya Nazimabad Championship",
+      "tournament": "Naya Nazimabad Independence Championship",
       "venue": "Karachi, PK",
       "result": "Runner-up",
-      "win": false
-    },
-    {
-      "year": "2025",
-      "tournament": "National Circuit, Leg 3",
-      "venue": "Lahore, PK",
-      "result": "Quarter-final",
-      "win": false
-    },
-    {
-      "year": "2025",
-      "tournament": "Punjab Open",
-      "venue": "Lahore, PK",
-      "result": "Winner",
-      "win": true
-    },
-    {
-      "year": "2024",
-      "tournament": "Islamabad International",
-      "venue": "Islamabad, PK",
-      "result": "Semi-final",
       "win": false
     },
     {
