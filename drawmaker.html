@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draw maker — NR Squash</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav no-print">
+  <div class="wrap nav__inner">
+    <a class="nav__mark" href="squash.html" aria-label="NR Squash Portal">
+      <img src="images/nr-logo-light.png" alt="NR Squash Portal">
+    </a>
+    <nav class="nav__links">
+      <a href="draw.html">Public draw</a>
+      <a href="referee.html">Referee</a>
+      <a href="squash.html">Portal</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ---------- Login ---------- -->
+<section class="wrap no-print" id="dmLogin">
+  <div class="ref-login">
+    <p class="soon__tag">Organisers only</p>
+    <h1>Draw maker</h1>
+    <p class="ref-login__text">Sign in to build a draw and publish it. Seeding follows PSA
+    practice — seeds 1 and 2 fixed, every other seed drawn at random within its block.</p>
+    <form class="ref-login__form" id="dmLoginForm">
+      <input class="pad__name" id="dmPass" type="password" autocomplete="current-password"
+             placeholder="Your password" aria-label="Your password" required>
+      <button class="btn btn--solid" type="submit">Sign in</button>
+    </form>
+    <p class="ref-login__msg" id="dmLoginMsg"></p>
+  </div>
+</section>
+
+<!-- ---------- The maker ---------- -->
+<section class="section section--tight wrap" id="dmMain" hidden>
+  <hr class="rule no-print">
+
+  <div class="section-head no-print">
+    <h2>Draw maker</h2>
+    <span class="ref-who" id="dmWho" hidden>Signed in as <strong id="dmWhoName"></strong></span>
+  </div>
+
+  <div class="dm no-print">
+    <div class="dm__form">
+      <label class="pad__field">
+        <span>Tournament</span>
+        <input class="pad__name" id="dmTournament" placeholder="Sindh Junior Circuit — Leg 3">
+      </label>
+
+      <label class="pad__field">
+        <span>Event</span>
+        <input class="pad__name" id="dmEvent" placeholder="Men's Singles · Main Draw">
+      </label>
+
+      <label class="pad__field">
+        <span>Format</span>
+        <select class="pad__name" id="dmFormat">
+          <option value="knockout">Knockout</option>
+          <option value="groups">Round robin groups</option>
+        </select>
+      </label>
+
+      <label class="pad__field" id="dmSizeField">
+        <span>Draw size</span>
+        <select class="pad__name" id="dmSize">
+          <option value="auto">Work it out from the entries</option>
+          <option value="16">16</option>
+          <option value="32">32</option>
+          <option value="64">64</option>
+          <option value="128">128</option>
+        </select>
+      </label>
+
+      <label class="pad__field" id="dmGroupsField" hidden>
+        <span>Number of groups</span>
+        <select class="pad__name" id="dmGroups">
+          <option value="2">2 groups</option>
+          <option value="3">3 groups</option>
+          <option value="4">4 groups</option>
+          <option value="6">6 groups</option>
+          <option value="8">8 groups</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="pad__field dm__entries">
+      <span>Entries — one player per line: <em>Name, Club, Seed</em>. Club and seed are optional.</span>
+      <textarea class="pad__name" id="dmEntries" rows="10"
+placeholder="Imran Qureshi, Karachi Gymkhana, 1
+Bilal Ahmed, Sindh Squash Academy, 2
+Hassan Raza, Naya Nazimabad, 3
+Owais Tariq, Hyderabad Club, 4
+Faisal Jamil, Karachi Gymkhana
+Usman Shah, Naya Nazimabad"></textarea>
+    </label>
+
+    <p class="dm__count" id="dmCount">No entries yet.</p>
+
+    <div class="pad__controls dm__controls">
+      <button class="btn btn--solid" id="dmGenerate">Make the draw</button>
+      <button class="btn btn--ghost" id="dmRedraw" hidden>Draw again</button>
+      <button class="btn btn--ghost" id="dmPublish" hidden>Publish to the site</button>
+      <button class="btn btn--ghost" id="dmPrint" hidden>Print</button>
+    </div>
+
+    <p class="pad__publish-state" id="dmState"></p>
+  </div>
+
+  <div id="dmPreview"></div>
+</section>
+
+<script src="drawlogic.js"></script>
+<script src="drawview.js"></script>
+<script src="drawmaker.js"></script>
+</body>
+</html>

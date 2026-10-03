@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referee — NR Squash</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a class="nav__mark" href="squash.html" aria-label="NR Squash Portal">
+      <img src="images/nr-logo-light.png" alt="NR Squash Portal">
+    </a>
+    <nav class="nav__links">
+      <a href="scoresheet.html">Scoresheets</a>
+      <a href="scoreboard.html">Big screen</a>
+      <a href="squash.html">Portal</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================================================
+     LOGIN — shown until the password checks out
+     ============================================================ -->
+<section class="wrap" id="refLogin">
+  <div class="ref-login">
+    <p class="soon__tag">Referees only</p>
+    <h1>Scoring pad</h1>
+    <p class="ref-login__text">Sign in with your own referee password to score a match and publish it
+    to the site and the big screen. Your name goes on the scoresheet automatically.
+    Viewers do not need this — they follow along on the portal.</p>
+
+    <form class="ref-login__form" id="refLoginForm">
+      <input class="pad__name" id="refPass" type="password" autocomplete="current-password"
+             placeholder="Your referee password" aria-label="Your referee password" required>
+      <button class="btn btn--solid" type="submit">Sign in</button>
+    </form>
+    <p class="ref-login__msg" id="refLoginMsg"></p>
+
+    <button class="ref-login__offline" id="refOffline" hidden>
+      Score offline instead
+    </button>
+  </div>
+</section>
+
+<!-- ============================================================
+     THE PAD — only after signing in
+     ============================================================ -->
+<section class="section section--tight wrap" id="refPad" hidden>
+  <hr class="rule">
+  <div class="section-head">
+    <h2>Referee pad</h2>
+    <span class="ref-who" id="refWho" hidden>
+      Signed in as <strong id="refWhoName"></strong>
+      <button class="ref-who__out" id="refSignOut">Sign out</button>
+    </span>
+  </div>
+  <p class="pad__intro" id="courtHint">Set the court first — each court publishes separately, so several matches can run at once. Point-a-rally scoring. Games to 11, win by two. Tap the player who won
+  the rally. While you are signed in the score publishes automatically.</p>
+
+  <div class="pad">
+    <!-- Match details: these appear on the big-screen scoreboard -->
+    <div class="pad__setup">
+      <h3 class="pad__history-title">Match details</h3>
+      <div class="pad__grid">
+        <label class="pad__field">
+          <span>Court</span>
+          <input class="pad__name" id="padCourt" value="1"
+                 placeholder="1" aria-describedby="courtHint">
+        </label>
+        <label class="pad__field">
+          <span>Tournament</span>
+          <input class="pad__name" id="padTournament" value="">
+        </label>
+        <label class="pad__field">
+          <span>Round</span>
+          <input class="pad__name" id="padRound" value="">
+        </label>
+        <label class="pad__field">
+          <span>Player 1</span>
+          <input class="pad__name" id="padName0" value="Player 1">
+        </label>
+        <label class="pad__field">
+          <span>Player 1 department or club</span>
+          <input class="pad__name" id="padDept0" value="">
+        </label>
+        <label class="pad__field">
+          <span>Player 2</span>
+          <input class="pad__name" id="padName1" value="Player 2">
+        </label>
+        <label class="pad__field">
+          <span>Player 2 department or club</span>
+          <input class="pad__name" id="padDept1" value="">
+        </label>
+      </div>
+    </div>
+
+    <div class="pad__games" id="padGames"></div>
+
+    <div class="pad__scores">
+      <button class="pad__side" id="padSide0" data-player="0">
+        <span class="pad__serve" id="padServe0">serving</span>
+        <span class="pad__num" id="padScore0">0</span>
+        <span class="pad__label" id="padLabel0">Player 1</span>
+      </button>
+      <button class="pad__side" id="padSide1" data-player="1">
+        <span class="pad__serve" id="padServe1">serving</span>
+        <span class="pad__num" id="padScore1">0</span>
+        <span class="pad__label" id="padLabel1">Player 2</span>
+      </button>
+    </div>
+
+    <p class="pad__status" id="padStatus">Game 1 · first to 11, win by 2</p>
+
+    <div class="pad__controls">
+      <button class="btn btn--ghost" id="padUndo">Undo</button>
+      <button class="btn btn--ghost" id="padReset">New match</button>
+      <button class="btn btn--ghost" id="padGoLive">Stop publishing</button>
+    </div>
+
+    <p class="pad__publish-state" id="padLiveState">Not publishing.</p>
+    <p class="pad__publish-note">
+      Big screen: open <a href="scoreboard.html" target="_blank" rel="noopener">the scoreboard</a>
+      on the display and press F11. Finished matches are saved for printing on
+      <a href="scoresheet.html">the scoresheets page</a>.
+    </p>
+
+    <div class="pad__history">
+      <h3 class="pad__history-title">Game history</h3>
+      <ul id="padHistory"><li class="pad__empty">No games finished yet.</li></ul>
+    </div>
+  </div>
+</section>
+
+<script src="referee.js"></script>
+</body>
+</html>

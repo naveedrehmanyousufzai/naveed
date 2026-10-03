@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scoresheets — NR Squash</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav no-print">
+  <div class="wrap nav__inner">
+    <a class="nav__mark" href="squash.html" aria-label="NR Squash Portal">
+      <img src="images/nr-logo-light.png" alt="NR Squash Portal">
+    </a>
+    <nav class="nav__links">
+      <a href="squash.html">Portal</a>
+      <a href="scoreboard.html">Scoreboard</a>
+      <a href="index.html">Main site</a>
+    </nav>
+  </div>
+</header>
+
+<section class="wrap pagehead no-print">
+  <h1>Scoresheets</h1>
+  <p>Every match finished on this device. Open one to print it or save it as a PDF.
+  These are stored in this browser only — they are not published to the site.</p>
+</section>
+
+<section class="section section--tight wrap no-print">
+  <hr class="rule">
+  <div class="sheet-tools">
+    <button class="btn btn--ghost" id="sheetExport">Download all as a file</button>
+    <button class="btn btn--ghost" id="sheetClear">Clear this device</button>
+  </div>
+  <div id="sheetList"></div>
+</section>
+
+<!-- The printable sheet is built here when a match is opened -->
+<section class="wrap" id="sheetView" hidden></section>
+
+<script src="scoresheet.js"></script>
+</body>
+</html>

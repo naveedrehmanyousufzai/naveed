@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live matches — NR Squash</title>
+<meta name="description" content="Every squash match being played right now, court by court, with live scores.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a class="nav__mark" href="squash.html" aria-label="NR Squash Portal">
+      <img src="images/nr-logo-light.png" alt="NR Squash Portal">
+    </a>
+    <button class="nav__toggle" id="navToggle" aria-expanded="false" aria-controls="navLinks" aria-label="Menu"><span></span><span></span><span></span></button>
+    <nav class="nav__links" id="navLinks">
+      <a href="squash.html">Portal</a>
+      <a href="squash.html#draw">Draw</a>
+      <a href="squash.html#rankings">Rankings</a>
+      <a href="index.html">Main site</a>
+    </nav>
+  </div>
+</header>
+
+<section class="wrap pagehead">
+  <h1>Live now</h1>
+  <p>Every match being played at this moment, court by court. The page updates by itself —
+  leave it open and the scores move.</p>
+</section>
+
+<section class="section section--tight wrap">
+  <hr class="rule">
+  <div id="live-grid"></div>
+</section>
+
+<script src="live.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

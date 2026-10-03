@@ -1,0 +1,78 @@
+{
+  "events": [
+    {
+      "name": "Sindh Junior Circuit — Leg 3",
+      "dates": "12–15 October 2026",
+      "venue": "Karachi Gymkhana",
+      "status": "Live",
+      "draw_url": "/draw.html",
+      "live_url": "#referee"
+    },
+    {
+      "name": "National Challenger Series",
+      "dates": "28 October – 1 November 2026",
+      "venue": "Islamabad Squash Complex",
+      "status": "Upcoming",
+      "draw_url": "/draw.html",
+      "live_url": ""
+    },
+    {
+      "name": "Sindh Squash Challenger 2",
+      "dates": "19–22 November 2026",
+      "venue": "Naya Nazimabad",
+      "status": "Upcoming",
+      "draw_url": "",
+      "live_url": ""
+    },
+    {
+      "name": "Inter-School Championship",
+      "dates": "4–6 December 2026",
+      "venue": "Karachi",
+      "status": "Upcoming",
+      "draw_url": "",
+      "live_url": ""
+    }
+  ],
+
+  "bracket": {
+    "title": "Sindh Junior Circuit — Leg 3",
+    "subtitle": "Men's Singles · Main Draw",
+    "rounds": [
+      {
+        "name": "Quarterfinals",
+        "matches": [
+          { "p1": "Sample Player A", "s1": "1", "p2": "Sample Player H", "s2": "8", "score": "11-6, 11-4, 11-8", "status": "Completed", "winner": "1" },
+          { "p1": "Sample Player D", "s1": "4", "p2": "Sample Player E", "s2": "5", "score": "11-9, 8-11, 11-7, 11-5", "status": "Completed", "winner": "1" },
+          { "p1": "Sample Player C", "s1": "3", "p2": "Sample Player F", "s2": "6", "score": "11-7, 11-13, 11-9", "status": "Completed", "winner": "1" },
+          { "p1": "Sample Player B", "s1": "2", "p2": "Sample Player G", "s2": "7", "score": "11-5, 11-6, 11-3", "status": "Completed", "winner": "1" }
+        ]
+      },
+      {
+        "name": "Semifinals",
+        "matches": [
+          { "p1": "Sample Player A", "s1": "1", "p2": "Sample Player D", "s2": "4", "score": "11-8, 9-11, 7-5", "status": "Live", "winner": "" },
+          { "p1": "Sample Player C", "s1": "3", "p2": "Sample Player B", "s2": "2", "score": "", "status": "Upcoming", "winner": "" }
+        ]
+      },
+      {
+        "name": "Final",
+        "matches": [
+          { "p1": "", "s1": "", "p2": "", "s2": "", "score": "", "status": "Upcoming", "winner": "" }
+        ]
+      }
+    ]
+  },
+
+  "rankings": [
+    { "rank": "1", "name": "Sample Player A", "category": "Senior", "club": "Karachi Gymkhana", "points": "4820" },
+    { "rank": "2", "name": "Sample Player B", "category": "Senior", "club": "Sindh Squash Academy", "points": "4310" },
+    { "rank": "3", "name": "Sample Player C", "category": "Senior", "club": "Naya Nazimabad", "points": "3975" },
+    { "rank": "4", "name": "Sample Player D", "category": "U19", "club": "Karachi Gymkhana", "points": "3640" },
+    { "rank": "5", "name": "Sample Player E", "category": "U19", "club": "Hyderabad Club", "points": "3120" },
+    { "rank": "6", "name": "Sample Player F", "category": "U19", "club": "Sindh Squash Academy", "points": "2890" },
+    { "rank": "7", "name": "Sample Player G", "category": "U17", "club": "Naya Nazimabad", "points": "2455" },
+    { "rank": "8", "name": "Sample Player H", "category": "U17", "club": "Karachi Gymkhana", "points": "2190" },
+    { "rank": "9", "name": "Sample Player I", "category": "U17", "club": "Hyderabad Club", "points": "1870" },
+    { "rank": "10", "name": "Sample Player J", "category": "U15", "club": "Sindh Squash Academy", "points": "1540" }
+  ]
+}

@@ -1,0 +1,88 @@
+/* ============================================================
+   live.js — every match running right now
+
+   Polls /api/live, which returns one entry per court, and draws
+   a card for each. Read-only: nothing here changes a score.
+   ============================================================ */
+
+const POLL_MS = 5000;
+const STALE_MS = 15 * 60 * 1000;   // a match nobody has touched is not live
+
+const esc = t => String(t ?? '').replace(/[&<>"]/g, c => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+));
+
+function card(m) {
+  const p = m.players || [];
+  const score = m.score || [0, 0];
+  const won = m.games_won || [0, 0];
+
+  const side = i => `
+    <div class="lm__side${m.server === i && !m.done ? ' lm__side--serving' : ''}">
+      <div class="lm__who">
+        <span class="lm__name">${esc(p[i]?.name || '')}</span>
+        ${p[i]?.dept ? `<span class="lm__dept">${esc(p[i].dept)}</span>` : ''}
+      </div>
+      <span class="lm__pts">${esc(score[i])}</span>
+    </div>`;
+
+  const games = (m.games || [])
+    .map((g, n) => `<li><b>G${n + 1}</b> ${esc(g[0])}–${esc(g[1])}</li>`).join('');
+
+  return `
+  <article class="lm">
+    <header class="lm__head">
+      <span class="lm__court">Court ${esc(m.court)}</span>
+      <span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished' : 'Live'}</span>
+    </header>
+
+    <p class="lm__event">${esc(m.tournament || '')}${m.round ? ' · ' + esc(m.round) : ''}</p>
+
+    ${side(0)}
+    <div class="lm__games">
+      <span>${esc(won[0])}–${esc(won[1])} games</span>
+      ${games ? `<ul class="lm__history">${games}</ul>` : ''}
+    </div>
+    ${side(1)}
+
+    <a class="lm__open" href="scoreboard.html?court=${encodeURIComponent(m.court)}">
+      Open full screen
+    </a>
+  </article>`;
+}
+
+function render(list) {
+  const root = document.getElementById('live-grid');
+
+  if (!list.length) {
+    root.innerHTML = `
+      <div class="lm-empty">
+        <p class="lm-empty__big">No matches are being played right now.</p>
+        <p class="pad__empty">When a referee starts scoring, the match will appear here
+        within a few seconds. You can leave this page open.</p>
+      </div>`;
+    return;
+  }
+
+  root.innerHTML = `<div class="lm-grid">${list.map(card).join('')}</div>`;
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/live', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const fresh = (data.matches || []).filter(m =>
+      m && m.updated && (Date.now() - m.updated < STALE_MS));
+    render(fresh);
+  } catch (err) {
+    const root = document.getElementById('live-grid');
+    if (!root.innerHTML.trim()) {
+      root.innerHTML = `<p class="pad__empty">Live scores are not reachable right now.
+      This page will keep trying.</p>`;
+    }
+  }
+}
+
+poll();
+setInterval(poll, POLL_MS);
