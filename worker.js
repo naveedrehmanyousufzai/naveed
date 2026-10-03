@@ -58,6 +58,38 @@ function cleanCourt(raw) {
   return c || null;
 }
 
+/* The referee list can be written either way:
+
+     Naveed Rehman: karachi-court-11
+     Asif Khan: swift-rally-07
+
+   or as JSON:
+
+     {"Naveed Rehman":"karachi-court-11"}
+
+   The plain lines are easier to type without a mistake, so they are
+   tried as well. A list that cannot be read at all admits nobody. */
+function parseLogins(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return {};
+
+  if (text.startsWith("{")) {
+    try { return JSON.parse(text); } catch { return null; }
+  }
+
+  const people = {};
+  for (const line of text.split(/[\n;]/)) {
+    const t = line.trim();
+    if (!t) continue;
+    const at = t.search(/[:=]/);
+    if (at < 1) continue;
+    const name = t.slice(0, at).trim().replace(/^["']|["']$/g, "");
+    const pass = t.slice(at + 1).trim().replace(/^["']|["']$/g, "");
+    if (name && pass) people[name] = pass;
+  }
+  return people;
+}
+
 /* Who is this? Returns a name, or null if the password matches nobody. */
 function whoIs(request, env) {
   const given = request.headers.get("x-admin-password") || "";
@@ -67,17 +99,11 @@ function whoIs(request, env) {
     return "Admin";
   }
 
-  if (env.REFEREE_LOGINS) {
-    let people = {};
-    try {
-      people = JSON.parse(env.REFEREE_LOGINS);
-    } catch {
-      /* A broken list must not let everyone in; treat it as empty. */
-      return null;
-    }
-    for (const [name, password] of Object.entries(people)) {
-      if (typeof password === "string" && password && given === password) return name;
-    }
+  const people = parseLogins(env.REFEREE_LOGINS);
+  if (!people) return null;           // unreadable list: let nobody in
+
+  for (const [name, password] of Object.entries(people)) {
+    if (typeof password === "string" && password && given === password) return name;
   }
 
   return null;
