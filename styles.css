@@ -613,6 +613,8 @@ img.hero__photo {
   :root { --gutter: 20px; }
   .hero__inner { padding-top: 56px; padding-bottom: 64px; }
   .hero h1 { letter-spacing: -0.03em; }
+  .hero__lede { font-size: var(--t-md); }
+  .hero__role { font-size: var(--t-xs); }
   .record__cell { padding-left: 16px; padding-right: 16px; }
   .record__cell:first-child,
   .record__cell:nth-child(odd) { padding-left: 16px; }
