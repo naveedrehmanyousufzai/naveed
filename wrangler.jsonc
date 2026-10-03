@@ -1,0 +1,37 @@
+{
+  // ==========================================================
+  // Cloudflare deployment settings for naveedrehman.com
+  //
+  // This file tells Cloudflare three things:
+  //   1. run worker.js as the site's code
+  //   2. serve every other file in this folder as the website
+  //   3. connect the DRAW_KV storage so draws and live scores
+  //      have somewhere to live
+  //
+  // DRAW_ADMIN_PASSWORD and REFEREE_LOGINS are secrets and are
+  // deliberately NOT in this file. They are added in the
+  // Cloudflare dashboard after this deploys.
+  // ==========================================================
+
+  "name": "naveed",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-03",
+
+  // Serve the ordinary files in this folder as the website.
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+
+  // Storage for the tournament draw and live match scores.
+  "kv_namespaces": [
+    {
+      "binding": "DRAW_KV",
+      "id": "307bb0de8f0a4d64b9669a28515f4973"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}
