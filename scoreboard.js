@@ -27,9 +27,39 @@ function mmss(ms) {
   return m + ':' + String(s).padStart(2, '0');
 }
 
+let cur = null;           // the match on screen
+let leftBase = 0;         // ms left in a warm-up / rest, at the last update
+
+/* Warm-up and rest count DOWN; a game counts UP. The announcement of the
+   last decision stays up for a few seconds. */
 function tickClock() {
-  if (!haveMatch) return;
-  txt('bClock', mmss(clockBase + (Date.now() - clockTakenAt)));
+  if (!haveMatch || !cur) return;
+  const now = Date.now();
+  const timed = cur.phase === 'warmup' || cur.phase === 'interval';
+
+  if (timed) {
+    const left = Math.max(0, leftBase - (now - clockTakenAt));
+    txt('bClock', mmss(Math.ceil(left / 1000) * 1000));
+    txt('bClockLabel', cur.phase === 'warmup' ? 'Warm-up left' : 'Rest left');
+    $('bClock').classList.add('board__clocktime--count');
+
+    const n = (cur.games || []).length + 1;
+    const second = cur.phase === 'warmup' && left <= (cur.phase_len || 300000) / 2;
+    $('bPhase').hidden = false;
+    $('bPhase').innerHTML = cur.phase === 'warmup'
+      ? `Warm-up<small>${left === 0 ? 'Warm-up over' : second ? 'Second half · switch sides' : 'First half'}</small>`
+      : `Rest<small>${left === 0 ? 'Time — game ' + n + ' next' : 'Game ' + n + ' next'}</small>`;
+  } else {
+    $('bPhase').hidden = true;
+    $('bClock').classList.remove('board__clocktime--count');
+    txt('bClockLabel', 'Game time');
+    txt('bClock', cur.game_started ? mmss(clockBase + (now - clockTakenAt)) : '0:00');
+  }
+
+  const call = $('bCall');
+  const shown = cur.call && (cur.call.age + (now - clockTakenAt) < 8000);
+  call.hidden = !shown;
+  if (shown && call.textContent !== cur.call.text) call.textContent = cur.call.text;
 }
 
 function show(on) {
@@ -101,9 +131,15 @@ function paint(d) {
   /* Status line */
   const state = $('bState');
   if (d.done) {
-    const w = won[0] > won[1] ? 0 : 1;
-    state.textContent = `${p[w]?.name || 'Winner'} wins ${won[w]}–${won[1 - w]}`;
+    const w = d.winner === 0 || d.winner === 1 ? d.winner : (won[0] > won[1] ? 0 : 1);
+    state.textContent = `${p[w]?.name || 'Winner'} wins ${won[w]}–${won[1 - w]}` +
+      (d.end_note === 'retired' ? ' (retirement)' : d.end_note === 'conduct' ? ' (conduct)' : '');
     state.className = 'board__result';
+  } else if (d.phase === 'warmup' || d.phase === 'interval' || d.phase === 'ready') {
+    state.textContent = d.phase === 'warmup' ? 'Warm-up'
+      : d.phase === 'ready' ? 'Match about to start'
+      : `Rest before game ${(d.games || []).length + 1}`;
+    state.className = '';
   } else {
     const [a, b] = score;
     let note = `Game ${(d.games || []).length + 1} · first to 11, win by 2`;
@@ -114,10 +150,12 @@ function paint(d) {
     state.className = '';
   }
 
-  /* Game clock, anchored to the moment this update was produced */
-  if (d.game_started && d.updated && d.updated !== clockAnchor) {
+  /* Clocks, anchored to the moment this update was produced */
+  cur = d;
+  if (d.updated && d.updated !== clockAnchor) {
     clockAnchor = d.updated;
-    clockBase = Math.max(0, d.updated - d.game_started);
+    clockBase = d.game_started ? Math.max(0, d.updated - d.game_started) : 0;
+    leftBase = d.phase_left || 0;
     clockTakenAt = Date.now();
   }
 
@@ -175,4 +213,4 @@ async function poll() {
 loadSchedule().then(poll);
 setInterval(loadSchedule, 60000);
 setInterval(poll, POLL_MS);
-setInterval(tickClock, 1000);
+setInterval(tickClock, 500);

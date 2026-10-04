@@ -84,6 +84,18 @@ function gameGrid(m, gameNo) {
   </div>`;
 }
 
+/* Decisions, reviews and warnings, if any were recorded. */
+function statsTable(m) {
+  if (!m.stats) return '';
+  const rows = [['decisions', 'Decisions'], ['stroke', 'Strokes'], ['yesLet', 'Yes lets'],
+    ['noLet', 'No lets'], ['appeals', 'Appeals'], ['reviews', 'Reviews'],
+    ['upheld', 'Upheld'], ['overruled', 'Overruled'], ['warnings', 'Warnings']];
+  if (!rows.some(([k]) => m.stats[0][k] || m.stats[1][k])) return '';
+  return `<table class="sheet-stats"><thead><tr><th></th>${rows.map(r => `<th>${r[1]}</th>`).join('')}</tr></thead><tbody>
+    ${[0, 1].map(i => `<tr><th>${esc(m.players?.[i]?.name || 'Player ' + (i + 1))}</th>${rows.map(([k]) => `<td>${esc(m.stats[i][k])}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
+}
+
 /* ---------- The printable sheet ---------- */
 function openSheet(id) {
   const m = load().find(x => x.id === id);
@@ -91,7 +103,7 @@ function openSheet(id) {
 
   const view = document.getElementById('sheetView');
   const won = m.games_won || [0, 0];
-  const winner = won[0] > won[1] ? 0 : 1;
+  const winner = m.winner === 0 || m.winner === 1 ? m.winner : (won[0] > won[1] ? 0 : 1);
   const games = (m.games || []).length;
 
   view.innerHTML = `
@@ -132,7 +144,10 @@ function openSheet(id) {
         (${(m.games || []).map(g => esc(g[0]) + '–' + esc(g[1])).join(', ')})
         · ${games} game${games === 1 ? '' : 's'}
         · ${esc(mins(m.started, m.finished))}
+        ${m.end_note === 'retired' ? '· retirement' : m.end_note === 'conduct' ? '· conduct' : ''}
       </p>
+
+      ${statsTable(m)}
 
       ${[1, 2, 3, 4, 5].map(n => gameGrid(m, n)).join('')}
 

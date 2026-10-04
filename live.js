@@ -34,7 +34,8 @@ function card(m) {
   <article class="lm">
     <header class="lm__head">
       <span class="lm__court">Court ${esc(m.court)}</span>
-      <span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished' : 'Live'}</span>
+      <span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished'
+        : m.phase === 'warmup' ? 'Warm-up' : m.phase === 'interval' ? 'Rest' : m.phase === 'ready' ? 'Starting' : 'Live'}</span>
     </header>
 
     <p class="lm__event">${esc(m.tournament || '')}${m.round ? ' · ' + esc(m.round) : ''}</p>
