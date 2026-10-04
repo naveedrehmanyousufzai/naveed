@@ -1598,3 +1598,21 @@ a.tt__row strong { text-decoration: none; }
 
 /* Match details are hidden; the Details button reveals them for manual matches */
 #refPad:not(.pad--details) .pad__setup { display: none; }
+
+/* Compact pad once a match is loaded: no wasted space */
+#refPad.pad--play:not(.pad--details) { padding-top: 6px; }
+#refPad.pad--play:not(.pad--details) > .rule,
+#refPad.pad--play:not(.pad--details) > .section-head,
+#refPad.pad--play:not(.pad--details) #courtHint,
+#refPad.pad--play:not(.pad--details) #padStatus,
+#refPad.pad--play:not(.pad--details) .pad__publish-state,
+#refPad.pad--play:not(.pad--details) .pad__publish-note,
+#refPad.pad--play:not(.pad--details) .pad__history { display: none !important; }
+#refPad.pad--play:not(.pad--details) .pad__title { font-size: 15px; margin: 0 0 2px; }
+#refPad.pad--play:not(.pad--details) .pad__timer { font-size: 14px; margin: 0 0 6px; color: var(--ash); }
+#refPad.pad--play:not(.pad--details) .pad__games { margin: 4px 0 8px; padding: 0; }
+#refPad.pad--play:not(.pad--details) .pad__side { padding: 12px 6px 10px; }
+#refPad.pad--play:not(.pad--details) .pad__actions { margin-top: 8px; gap: 8px; }
+#refPad.pad--play:not(.pad--details) .pad__serve-bar { margin: 8px 0 0; padding: 10px; }
+#refPad.pad--play:not(.pad--details) .pad__controls { margin-top: 10px; }
+.pad__actions { align-items: stretch; } .pad__act-col .btn { height: 100%; }
