@@ -494,23 +494,24 @@ const mmss = ms => {
 function padRenderServeBar(names) {
   const bar = document.getElementById('padServeBar');
   if (!bar) return;
-  if (pad.done) { bar.hidden = true; return; }
-  bar.hidden = false;
+  const fresh = !pad.score[0] && !pad.score[1];
+  const needServer = !pad.done && pad.games.length === 0 && fresh && pad.sideFree;
+  const needSide = !pad.done && pad.sideFree && pad.server !== null;
+  bar.hidden = !(needServer || needSide);
+  if (bar.hidden) { bar.innerHTML = ''; return; }
 
-  /* The server can be changed only before the first rally of a game. */
-  const canPickServer = !pad.score[0] && !pad.score[1] && pad.sideFree;
-  const chips = [0, 1].map(i => `
-    <button class="pad__chip${pad.server === i ? ' pad__chip--on' : ''}" data-srv="${i}"
-      ${canPickServer ? '' : 'disabled'}>${esc(names[i])}</button>`).join('');
-
-  const sides = ['L', 'R'].map(sd => `
-    <button class="pad__chip pad__chip--side${pad.side === sd ? ' pad__chip--on' : ''}" data-sd="${sd}"
-      ${pad.sideFree && pad.server !== null ? '' : 'disabled'}
-      aria-label="Serve from ${sd === 'L' ? 'left' : 'right'}">${sd}</button>`).join('');
-
-  bar.innerHTML = `
-    <div class="pad__serve-row"><span class="pad__serve-q">Server</span>${chips}</div>
-    <div class="pad__serve-row"><span class="pad__serve-q">Serving from</span>${sides}</div>`;
+  let html = '';
+  if (needServer) {
+    html += `<p class="pad__serve-q">Who serves first?</p><div class="pad__serve-grid">` +
+      [0, 1].map(i => `<button class="pad__chip${pad.server === i ? ' pad__chip--on' : ''}" data-srv="${i}">${esc(names[i])}</button>`).join('') +
+      `</div>`;
+  }
+  if (needSide) {
+    html += `<p class="pad__serve-q">${esc(names[pad.server])} serves from</p><div class="pad__serve-grid">` +
+      ['L', 'R'].map(sd => `<button class="pad__chip pad__chip--side${pad.side === sd ? ' pad__chip--on' : ''}" data-sd="${sd}"
+        aria-label="Serve from ${sd === 'L' ? 'left' : 'right'}">${sd}</button>`).join('') + `</div>`;
+  }
+  bar.innerHTML = html;
 }
 
 /* Warm-up, rest, and the button that moves on. Counts down live. */
@@ -550,6 +551,14 @@ function padRenderPhase() {
 
 function padTick() {
   if (!pad) return;
+  const tm = document.getElementById('padTimer');
+  if (tm) {
+    if (pad.phase === 'play' && pad.started && !pad.done) {
+      tm.hidden = false;
+      tm.textContent = 'Match ' + mmss(Date.now() - pad.started) +
+        (pad.gameStarted ? '  \u00b7  Game ' + (pad.games.length + 1) + ' ' + mmss(Date.now() - pad.gameStarted) : '');
+    } else tm.hidden = true;
+  }
   const title = document.getElementById('padPhaseTitle');
   const clock = document.getElementById('padPhaseClock');
   if (!title || !clock) return;
@@ -583,7 +592,6 @@ function padRenderPanel() {
   actions.innerHTML = [0, 1].map(i => `
     <div class="pad__act-col">
       <button class="btn btn--ghost" data-act="open:decision:${i}" ${live ? '' : 'disabled'}>Decision · ${esc(names[i])}</button>
-      <button class="btn btn--ghost" data-act="open:review:${i}" ${live && pad.reviews[i] > 0 ? '' : 'disabled'}>Review · ${pad.reviews[i]} left</button>
     </div>`).join('') +
     `<div class="pad__act-col pad__act-col--wide">
       <button class="btn btn--ghost" data-act="open:options:0">Options · conduct · injury · retire</button>
@@ -606,15 +614,6 @@ function padRenderPanel() {
       </div>
       <div class="pad__panel-row">
         ${b(`decision:${p}:appeal`, 'Appeal', 'pad__opt--grey')}
-        ${b(`open:review:${p}`, 'Video review', 'pad__opt--green')}
-        ${cancel}
-      </div>`;
-  } else if (type === 'review') {
-    box.innerHTML = `<h3 class="pad__panel-title">Video review — ${esc(names[p])} · ${pad.reviews[p]} left</h3>
-      <p class="pad__panel-note">Upheld uses up a review. Overruled keeps it — the last call is taken back and you make the new one.</p>
-      <div class="pad__panel-row">
-        ${b(`review:${p}:upheld`, 'Decision upheld', 'pad__opt--green')}
-        ${b(`review:${p}:overruled`, 'Decision overruled', 'pad__opt--purple')}
         ${cancel}
       </div>`;
   } else if (type === 'conduct') {
@@ -644,7 +643,7 @@ function padRenderPanel() {
 
 const STAT_ROWS = [
   ['decisions', 'Decisions'], ['stroke', 'Strokes'], ['yesLet', 'Yes lets'],
-  ['noLet', 'No lets'], ['appeals', 'Appeals'], ['reviews', 'Reviews'],
+  ['noLet', 'No lets'], ['appeals', 'Appeals'],
   ['upheld', 'Upheld'], ['overruled', 'Overruled'], ['warnings', 'Warnings']
 ];
 
@@ -705,13 +704,14 @@ function padRenderAnnounce() {
   title.textContent = m.tournament;
   title.hidden = !m.tournament;
 
-  const show = pad.phase !== 'play';
+  const fresh = !pad.score[0] && !pad.score[1];
+  const show = pad.done || pad.phase === 'interval' || fresh;
   box.hidden = !show;
   if (show) box.textContent = padAnnouncement();
 
   /* In play: nothing but the score and the controls */
   const root = document.getElementById('refPad');
-  root.classList.toggle('pad--play', pad.phase === 'play');
+  root.classList.toggle('pad--play', pad.phase === 'play' || (!!pad.matchId && pad.phase !== 'ready'));
 }
 
 function padRender() {
@@ -731,6 +731,7 @@ function padRender() {
   padRenderPanel();
   padRenderStats(names);
   padRenderAnnounce();
+  padTick();
 
   document.getElementById('padGames').innerHTML =
     `<span class="pad__gamecount">${won[0]}</span>

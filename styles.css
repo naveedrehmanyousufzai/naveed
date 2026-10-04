@@ -1566,7 +1566,32 @@ a.tt__row strong { text-decoration: none; }
 #refPad.pad--play:not(.pad--details) .pad__intro,
 #refPad.pad--play:not(.pad--details) .pad__mine,
 #refPad.pad--play:not(.pad--details) .pad__setup,
+#refPad.pad--play:not(.pad--details) .pad__controls--misc,
 #refPad.pad--play:not(.pad--details) .pad__history,
 #refPad.pad--play:not(.pad--details) .pad__publish-note,
 #refPad.pad--play:not(.pad--details) .pad__publish-state:not(.pad__publish-state--bad),
 #refPad.pad--play:not(.pad--details) #padStatus:not(.pad__serve-need) { display: none; }
+
+/* 38. Pad: serve pick, timer, mobile */
+.pad__timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: var(--t-md); color: var(--text); margin: 0 0 10px; }
+.pad__serve-bar { gap: 8px; }
+.pad__serve-q { min-width: 0; margin: 0; font-weight: 600; color: var(--gold-ink); }
+.pad__serve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pad__serve-grid .pad__chip { width: 100%; min-height: 56px; padding: 10px; border-radius: 12px; text-align: center; overflow-wrap: anywhere; }
+.pad__chip--side { font-size: 32px; }
+.pad__phase-clock { font-size: clamp(44px, 14vw, 72px); }
+@media (max-width: 600px) {
+  .pad__announce { font-size: 17px; padding: 14px; }
+  .pad__scores { gap: 8px; }
+  .pad__side { padding: 18px 6px 14px; min-width: 0; }
+  .pad__num { font-size: clamp(64px, 24vw, 96px); }
+  .pad__serve { font-size: 13px; font-weight: 700; }
+  .pad__actions { grid-template-columns: 1fr 1fr; }
+  .pad__act-col .btn { min-height: 48px; }
+  .pad__controls { flex-wrap: wrap; }
+  .pad__controls .btn { flex: 1 1 40%; }
+  .pad__panel-cols { grid-template-columns: 1fr; }
+  .pad__opt { min-width: 45%; padding: 16px 10px; }
+  .pad .section-head, #refPad .section-head { flex-wrap: wrap; gap: 8px; }
+}
+.pad__serve-bar[hidden], .pad__timer[hidden], .pad__announce[hidden] { display: none !important; }
