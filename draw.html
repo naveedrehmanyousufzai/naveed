@@ -52,7 +52,9 @@ async function loadDraw() {
       const res = await fetch('/api/draw?id=' + encodeURIComponent(wanted), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const draw = await res.json();
-      if (draw) DrawView.render(root, draw);
+      let sch = null;
+      try { const r = await fetch('/api/schedule?id=' + encodeURIComponent(wanted), { cache: 'no-store' }); if (r.ok) sch = await r.json(); } catch { /* no times yet */ }
+      if (draw) DrawView.render(root, draw, sch);
       else root.innerHTML = '<p class="pad__empty">That draw has not been published yet.</p>';
       document.getElementById('drawTools').hidden = !draw;
       return;

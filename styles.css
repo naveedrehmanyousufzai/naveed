@@ -1631,3 +1631,6 @@ a.tt__row strong { text-decoration: none; }
 .ent-del { background: none; border: 0; color: #D13A3A; font-size: 20px; cursor: pointer; padding: 2px 8px; }
 
 .dm__absent td { opacity: .45; }
+
+.match__when { font-size: var(--t-xs); color: var(--gold-ink); font-weight: 700; margin-top: 8px; }
+.group__fx .match__when { margin: 2px 0 0; }

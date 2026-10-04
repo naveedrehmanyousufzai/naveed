@@ -10,8 +10,26 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
   ));
 
+  /* Court and time of a match, from the schedule (if any) */
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function whenHTML(sched, id) {
+    const m = sched && (sched.matches || []).find(x => x.id === id);
+    if (!m || m.status === 'bye') return '';
+    const bits = [];
+    if (m.court) bits.push('Court ' + esc(m.court));
+    if (m.time) {
+      const d = new Date(m.time);
+      if (!isNaN(d)) {
+        const hh = d.getHours(), mm = String(d.getMinutes()).padStart(2, '0');
+        bits.push(`${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}, ${hh % 12 || 12}:${mm} ${hh < 12 ? 'am' : 'pm'}`);
+      }
+    }
+    return bits.length ? `<p class="match__when">${bits.join(' · ')}</p>` : '';
+  }
+
   /* ---------- Knockout ---------- */
-  function knockoutHTML(draw) {
+  function knockoutHTML(draw, sched) {
     const slots = draw.slots || [];
     const pairs = [];
     for (let i = 0; i < slots.length; i += 2) pairs.push([slots[i], slots[i + 1]]);
@@ -37,22 +55,24 @@
               ${line(p[0])}
               ${line(p[1])}
               ${draw.rounds?.[0]?.matches?.[i]?.score ? `<p class="match__score">${esc(draw.rounds[0].matches[i].score)}</p>` : ''}
+              ${whenHTML(sched, 'r1m' + (i + 1))}
             </div>`).join('')}
         </div>
       </div>`;
 
     /* Later rounds start empty and fill in as results come in. */
-    const later = (draw.rounds || []).slice(1).map(r => `
+    const later = (draw.rounds || []).slice(1).map((r, ri) => `
       <div class="bracket__col">
         <h3 class="bracket__round">${esc(r.name)}</h3>
         <div class="bracket__matches">
-          ${(r.matches || []).map(m => `
+          ${(r.matches || []).map((m, mi) => `
             <div class="match">
               ${m.p1 ? `<div class="slot"><span class="slot__name">${esc(m.p1)}</span></div>`
                      : `<div class="slot slot--empty">To be decided</div>`}
               ${m.p2 ? `<div class="slot"><span class="slot__name">${esc(m.p2)}</span></div>`
                      : `<div class="slot slot--empty">To be decided</div>`}
               ${m.score ? `<p class="match__score">${esc(m.score)}</p>` : ''}
+              ${whenHTML(sched, 'r' + (ri + 2) + 'm' + (mi + 1))}
             </div>`).join('')}
         </div>
       </div>`).join('');
@@ -63,10 +83,10 @@
   }
 
   /* ---------- Round robin groups ---------- */
-  function groupsHTML(draw) {
+  function groupsHTML(draw, sched) {
     const L = window.DrawLogic;
 
-    return `<div class="groups">` + (draw.groups || []).map(g => {
+    return `<div class="groups">` + (draw.groups || []).map((g, gi) => {
       const table = L ? L.standings(g) : [];
       return `
       <section class="group">
@@ -92,9 +112,9 @@
         </table>
 
         <ul class="group__fixtures">
-          ${(g.matches || []).map(m => `
+          ${(g.matches || []).map((m, n) => `
             <li>
-              <span class="group__fx">${esc(m.p1)} v ${esc(m.p2)}</span>
+              <span class="group__fx">${esc(m.p1)} v ${esc(m.p2)}${whenHTML(sched, 'g' + (gi + 1) + 'm' + (n + 1))}</span>
               <span class="group__sc">${m.score ? esc(m.score) : '—'}</span>
             </li>`).join('')}
         </ul>
@@ -103,7 +123,7 @@
   }
 
   /* ---------- Entry point ---------- */
-  function render(el, draw) {
+  function render(el, draw, sched) {
     if (!el) return;
     if (!draw) {
       el.innerHTML = `<p class="pad__empty">No draw has been published yet.</p>`;
@@ -117,7 +137,7 @@
       </div>`;
 
     el.innerHTML = head +
-      (draw.format === 'groups' ? groupsHTML(draw) : knockoutHTML(draw));
+      (draw.format === 'groups' ? groupsHTML(draw, sched) : knockoutHTML(draw, sched));
   }
 
   window.DrawView = { render, esc };

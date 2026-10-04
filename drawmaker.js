@@ -174,7 +174,7 @@ function showDraft(k) {
   activeDraft = k;
   current = drafts[k].current;
   sched = drafts[k].sched;
-  if (current) DrawView.render($('dmPreview'), current); else $('dmPreview').innerHTML = '';
+  if (current) DrawView.render($('dmPreview'), current, sched); else $('dmPreview').innerHTML = '';
   renderTabs();
   renderMatches();
 }
@@ -235,6 +235,7 @@ $('dmMatches').addEventListener('input', e => {
   const row = e.target.closest('tr[data-i]');
   if (!row || !sched) return;
   sched.matches[Number(row.dataset.i)][e.target.dataset.f] = e.target.value;
+  if (current) DrawView.render($('dmPreview'), current, sched);
 });
 
 function schedSay(msg, kind) {
