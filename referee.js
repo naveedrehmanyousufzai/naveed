@@ -679,7 +679,7 @@ function padAnnouncement() {
       pad.games.map(g => g[0] + '-' + g[1]).join(', ') + '.';
   }
 
-  if (pad.phase === 'interval') {
+  if (pad.games.length > 0) {          // between games, and at 0-0 of the next one
     const n = pad.games.length;
     const g = pad.games[n - 1];
     const w = pad.gw[n - 1];
