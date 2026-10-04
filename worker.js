@@ -387,6 +387,48 @@ function advance(sched, m, draw) {
 }
 
 /* ---------- Feedback: anyone may send, only the organiser may read ---------- */
+
+/* ---------- Entries: the players entered in a tournament ----------
+   GET  /api/entries?tournament=<tid>   public, {entries:[...]}
+   POST /api/entries                     organiser only, {tournament, entries:[...]} replaces the list */
+const ENTRIES_PREFIX = "entries:";
+async function entriesRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  const q = new URL(request.url).searchParams;
+
+  if (request.method === "GET") {
+    const tid = cleanId(q.get("tournament"));
+    if (!tid) return fail("Which tournament?", 400);
+    const raw = await env.DRAW_KV.get(ENTRIES_PREFIX + tid);
+    return json(JSON.stringify({ entries: raw ? (JSON.parse(raw).entries || []) : [] }));
+  }
+
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    const tid = cleanId(b.tournament);
+    if (!tid || !Array.isArray(b.entries)) return fail("Tournament and entries are needed.", 400);
+    const s = (v, n) => String(v || "").trim().slice(0, n);
+    const entries = b.entries.slice(0, 600).map(e => {
+      const rank = parseInt(e.rank, 10);
+      return {
+        id: s(e.id, 30) || Math.random().toString(36).slice(2, 10),
+        name: s(e.name, 80),
+        club: s(e.club, 80),
+        country: s(e.country, 40),
+        division: s(e.division, 40),
+        rank: Number.isFinite(rank) && rank > 0 ? rank : null,
+      };
+    }).filter(e => e.name);
+    await env.DRAW_KV.put(ENTRIES_PREFIX + tid, JSON.stringify({ entries, updated: Date.now() }));
+    return json(JSON.stringify({ ok: true, entries }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
 async function feedbackRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
@@ -455,6 +497,7 @@ export default {
     if (path === "/api/schedule") return scheduleRoute(request, env);
     if (path === "/api/result") return resultRoute(request, env);
     if (path === "/api/feedback") return feedbackRoute(request, env);
+    if (path === "/api/entries") return entriesRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */
     return env.ASSETS.fetch(request);

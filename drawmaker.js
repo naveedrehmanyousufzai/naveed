@@ -14,26 +14,74 @@ let sched = null;            // the matches (court, time, referee) on screen
 let referees = [];           // names the organiser can assign
 let logo = '';               // tournament logo as a small data URL
 
-/* ---------- Reading the entry list ----------
-   One player per line: "Name, Club, Seed, Country". Club and seed optional,
-   so "Faisal Jamil" and "Faisal Jamil, , 5" both work. */
-function parseEntries(text) {
-  return String(text || '')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const bits = line.split(',').map(b => b.trim());
-      const seed = parseInt(bits[2], 10);
-      return {
-        name: bits[0],
-        club: bits[1] || '',
-        country: bits[3] || '',
-        seed: Number.isFinite(seed) && seed >= 1 ? seed : undefined
-      };
-    })
-    .filter(e => e.name);
+/* ---------- Categories and players ---------- */
+const CATS = [
+  ['BU9', 'Boys Under 9'], ['GU9', 'Girls Under 9'], ['BU11', 'Boys Under 11'], ['GU11', 'Girls Under 11'],
+  ['BU13', 'Boys Under 13'], ['GU13', 'Girls Under 13'], ['BU15', 'Boys Under 15'], ['GU15', 'Girls Under 15'],
+  ['BU17', 'Boys Under 17'], ['GU17', 'Girls Under 17'], ['BU19', 'Boys Under 19'], ['GU19', 'Girls Under 19'],
+  ['MEN', 'Men'], ['WOMEN', 'Women']
+];
+let entriesAll = [];                 // the tournament's entries
+const picks = {};                    // label -> { id: 'main' | 'wc' | '' }
+const drafts = {};                   // label -> { current, sched }
+let activeDraft = '';
+
+const rankOf = e => (Number(e.rank) > 0 ? Number(e.rank) : 1e9);
+const byRank = (a, b) => rankOf(a) - rankOf(b) || String(a.name).localeCompare(b.name);
+const ticked = () => CATS.filter(([c]) => $('cat_' + c) && $('cat_' + c).checked).map(c => c[1]);
+const mainSlots = () => Number($('dmSize').value) - Number($('dmWild').value);
+
+function renderCats() {
+  $('dmCats').innerHTML = CATS.map(([c, label]) => `
+    <label class="dm__cat"><input type="checkbox" id="cat_${c}" data-cat="${stamp(label)}"> <span>${c === 'MEN' ? 'Men' : c === 'WOMEN' ? 'Women' : c}</span></label>`).join('');
 }
+
+/* Default picks for a category: best ranked fill the main draw */
+function defaultPicks(label) {
+  const list = entriesAll.filter(e => e.division === label).sort(byRank);
+  const p = {};
+  list.forEach((e, i) => { p[e.id] = i < mainSlots() ? 'main' : ''; });
+  picks[label] = p;
+}
+
+function renderPlayers() {
+  const box = $('dmPlayers');
+  const labels = ticked();
+  if (!$('dmTournament').value) { box.innerHTML = '<p class="pad__empty">Choose a tournament and tick a category.</p>'; updateCount(); return; }
+  if (!labels.length) { box.innerHTML = '<p class="pad__empty">Tick one or more categories above.</p>'; updateCount(); return; }
+
+  box.innerHTML = labels.map(label => {
+    if (!picks[label]) defaultPicks(label);
+    const list = entriesAll.filter(e => e.division === label).sort(byRank);
+    if (!list.length) return `<div class="dm__pl"><h4 class="dm__round">${stamp(label)}</h4><p class="pad__empty">No entries yet. Add players on the tournament page, Entries tab.</p></div>`;
+    const p = picks[label];
+    const main = list.filter(e => p[e.id] === 'main').length;
+    const wc = list.filter(e => p[e.id] === 'wc').length;
+    return `<div class="dm__pl" data-label="${stamp(label)}">
+      <h4 class="dm__round">${stamp(label)} <small>main ${main}/${mainSlots()} · wild cards ${wc}/${$('dmWild').value}</small></h4>
+      <table class="table plain-table"><thead><tr><th>In</th><th>WC</th><th>Rank</th><th>Player</th><th>Association</th></tr></thead><tbody>
+      ${list.map(e => `<tr>
+        <td><input type="checkbox" data-in="${stamp(e.id)}" ${p[e.id] ? 'checked' : ''}></td>
+        <td><input type="checkbox" data-wc="${stamp(e.id)}" ${p[e.id] === 'wc' ? 'checked' : ''}></td>
+        <td>${e.rank || '–'}</td><td>${stamp(e.name)}</td><td>${stamp(e.club)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }).join('');
+  updateCount();
+}
+
+$('dmPlayers').addEventListener('change', e => {
+  const wrap = e.target.closest('.dm__pl');
+  if (!wrap) return;
+  const p = picks[wrap.dataset.label];
+  if (e.target.dataset.in) p[e.target.dataset.in] = e.target.checked ? 'main' : '';
+  if (e.target.dataset.wc) p[e.target.dataset.wc] = e.target.checked ? 'wc' : (p[e.target.dataset.wc] ? 'main' : '');
+  renderPlayers();
+});
+$('dmCats').addEventListener('change', renderPlayers);
+['dmSize', 'dmWild'].forEach(id => $(id).addEventListener('change', () => {
+  Object.keys(picks).forEach(k => delete picks[k]);
+  renderPlayers();
+}));
 
 function say(msg, kind) {
   const el = $('dmState');
@@ -42,69 +90,80 @@ function say(msg, kind) {
 }
 
 function updateCount() {
-  const entries = parseEntries($('dmEntries').value);
-  const seeds = entries.filter(e => e.seed).length;
-  if (!entries.length) { $('dmCount').textContent = 'No entries yet.'; return; }
-
-  if ($('dmFormat').value === 'groups') {
-    const g = Number($('dmGroups').value);
-    const per = Math.floor(entries.length / g);
-    const odd = entries.length % g;
-    $('dmCount').textContent =
-      `${entries.length} entries, ${seeds} seeded — ${g} groups of ` +
-      (odd ? `${per} or ${per + 1}` : per);
-  } else {
-    const chosen = $('dmSize').value;
-    const size = chosen === 'auto' ? DrawLogic.drawSizeFor(entries.length) : Number(chosen);
-    const byes = size - entries.length;
-    $('dmCount').textContent =
-      `${entries.length} entries, ${seeds} seeded — ${size}-player draw` +
-      (byes > 0 ? `, ${byes} bye${byes === 1 ? '' : 's'}` : '') +
-      (byes < 0 ? ' — too many for this size' : '');
-  }
+  const labels = ticked();
+  if (!labels.length) { $('dmCount').textContent = ''; return; }
+  const n = labels.reduce((t, l) => t + Object.values(picks[l] || {}).filter(Boolean).length, 0);
+  $('dmCount').textContent = `${labels.length} categor${labels.length === 1 ? 'y' : 'ies'}, ${n} players chosen — ` +
+    ($('dmFormat').value === 'groups' ? `${$('dmGroups').value} groups each` : `${$('dmSize').value}-player draws`);
 }
 
-/* ---------- Making the draw ---------- */
-function generate() {
-  const entries = parseEntries($('dmEntries').value);
-  if (entries.length < 2) { say('Add at least two players.', 'bad'); return; }
+/* The players for one category, ready for the draw: seeded by rank,
+   wild cards unseeded. */
+function playersFor(label) {
+  const p = picks[label] || {};
+  const chosen = entriesAll.filter(e => e.division === label && p[e.id]).sort(byRank);
+  const size = Number($('dmSize').value);
+  const seedCount = size >= 64 ? 16 : size >= 32 ? 8 : size >= 16 ? 4 : 2;
+  let seed = 0;
+  return chosen.map(e => {
+    const out = { name: e.name, club: e.club || '', country: e.country || '' };
+    if (p[e.id] === 'main' && e.rank && seed < seedCount) out.seed = ++seed;
+    if (p[e.id] === 'wc') out.wildcard = true;
+    return out;
+  });
+}
 
+/* ---------- Making the draws ---------- */
+function generate() {
   const tournament = tName();
   const tournamentId = $('dmTournament').value;
-  const event = $('dmEvent').value.trim();
   if (!tournamentId) { say('Choose the tournament first.', 'bad'); return; }
-  if (!event) { say('Type the division, for example Boys Under 13.', 'bad'); return; }
+  const labels = ticked();
+  if (!labels.length) { say('Tick at least one category.', 'bad'); return; }
 
-  try {
-    if ($('dmFormat').value === 'groups') {
-      current = DrawLogic.buildGroups(entries, Number($('dmGroups').value));
-    } else {
-      const chosen = $('dmSize').value;
-      current = DrawLogic.buildKnockout(entries, {
-        size: chosen === 'auto' ? undefined : Number(chosen)
-      });
-    }
-  } catch (err) {
-    say(err.message, 'bad');
-    return;
+  const made = {};
+  for (const label of labels) {
+    const entries = playersFor(label);
+    if (entries.length < 2) { say(`${label}: choose at least two players.`, 'bad'); return; }
+    let draw;
+    try {
+      draw = $('dmFormat').value === 'groups'
+        ? DrawLogic.buildGroups(entries, Number($('dmGroups').value))
+        : DrawLogic.buildKnockout(entries, { size: Number($('dmSize').value) });
+    } catch (err) { say(`${label}: ${err.message}`, 'bad'); return; }
+    draw.tournament = tournament; draw.tournamentId = tournamentId; draw.event = label;
+    draw.made = Date.now(); draw.madeBy = sessionStorage.getItem(NAME_KEY) || '';
+    made[label] = {
+      current: draw,
+      sched: { drawId: String(draw.made) + '-' + slugOf(label), tournamentId, tournament, event: label, logo,
+               matches: DrawLogic.matchesFromDraw(draw) }
+    };
   }
-
-  current.tournament = tournament;
-  current.tournamentId = tournamentId;
-  current.event = event;
-  current.made = Date.now();
-  current.madeBy = sessionStorage.getItem(NAME_KEY) || '';
-
-  DrawView.render($('dmPreview'), current);
+  Object.keys(drafts).forEach(k => delete drafts[k]);
+  Object.assign(drafts, made);
+  showDraft(labels[0]);
   ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = false; });
+  say(`${labels.length} draw${labels.length === 1 ? '' : 's'} made. Set courts, times and referees below, then publish.`, 'good');
+}
 
-  sched = {
-    drawId: String(current.made),
-    tournamentId, tournament, event, logo,
-    matches: DrawLogic.matchesFromDraw(current)
-  };
+function renderTabs() {
+  const keys = Object.keys(drafts);
+  const box = $('dmTabs');
+  box.hidden = keys.length < 2;
+  box.innerHTML = keys.map(k => `<button class="pad__chip${k === activeDraft ? ' pad__chip--on' : ''}" data-draft="${stamp(k)}">${stamp(k)}</button>`).join('');
+}
+$('dmTabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-draft]');
+  if (b) showDraft(b.dataset.draft);
+});
+
+function showDraft(k) {
+  activeDraft = k;
+  current = drafts[k].current;
+  sched = drafts[k].sched;
+  if (current) DrawView.render($('dmPreview'), current); else $('dmPreview').innerHTML = '';
+  renderTabs();
   renderMatches();
-  say('Draw made. Set courts, times and referees below, then publish.', 'good');
 }
 
 /* The tournament dropdown is filled from content/tournaments.json. */
@@ -188,24 +247,28 @@ async function post(path, body) {
 async function saveSchedule() {
   sched.tournamentId = $('dmTournament').value || sched.tournamentId;
   sched.tournament = tName() || sched.tournament;
-  sched.event = $('dmEvent').value.trim() || sched.event;
   sched.logo = logo;
-  if (!sched.tournamentId || !sched.event) throw new Error('Choose the tournament and type the division first.');
+  if (!sched.tournamentId || !sched.event) throw new Error('Choose the tournament and a category first.');
   const saved = await post('/api/schedule?id=' + encodeURIComponent(sidOf(sched.tournamentId, sched.event)), sched);
+  if (drafts[activeDraft]) drafts[activeDraft].sched = saved;
   sched = saved;                 // keeps any result a referee just reported
   renderMatches();
 }
 
 /* ---------- Publishing ---------- */
 async function publish() {
-  if (!current) return;
+  const keys = Object.keys(drafts).filter(k => drafts[k].current);
+  if (!keys.length) return;
   say('Publishing…');
+  const keep = activeDraft;
   try {
-    sched.tournamentId = current.tournamentId;
-    sched.event = current.event;
-    await post('/api/draw?id=' + encodeURIComponent(sidOf(current.tournamentId, current.event)), current);
-    await saveSchedule();
-    say('Published. The draw and the matches are live on the site.', 'good');
+    for (const k of keys) {
+      showDraft(k);
+      await post('/api/draw?id=' + encodeURIComponent(sidOf(current.tournamentId, current.event)), current);
+      await saveSchedule();
+    }
+    showDraft(keep);
+    say(`Published ${keys.length} draw${keys.length === 1 ? '' : 's'}. The draws and matches are live on the site.`, 'good');
     schedSay('Saved.', 'good');
   } catch (err) {
     say('Could not publish — ' + err.message + ' The draw is still on screen; try again.', 'bad');
@@ -233,7 +296,7 @@ $('dmLogo').addEventListener('change', e => {
     logo = c.toDataURL('image/png');
     $('dmLogoPreview').src = logo;
     $('dmLogoPreview').hidden = false;
-    if (sched) sched.logo = logo;
+    Object.values(drafts).forEach(d => { d.sched.logo = logo; });
     URL.revokeObjectURL(img.src);
   };
   img.src = URL.createObjectURL(file);
@@ -271,18 +334,32 @@ async function loadPublished() {
 function openPublished(i) {
   const s = publishedHere[Number(i)];
   if (!s) return;
-  sched = s;
-  current = null;
   logo = s.logo || '';
-  $('dmEvent').value = s.event || '';
   $('dmLogoPreview').src = logo; $('dmLogoPreview').hidden = !logo;
+  Object.keys(drafts).forEach(k => delete drafts[k]);
+  drafts[s.event || 'Draw'] = { current: null, sched: s };
   ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = true; });
-  $('dmPreview').innerHTML = '';
-  renderMatches();
+  showDraft(s.event || 'Draw');
   say('Opened the published draw. Change courts, times and referees below.', 'good');
 }
 
-$('dmTournament').addEventListener('change', loadPublished);
+async function loadEntries() {
+  const tid = $('dmTournament').value;
+  entriesAll = [];
+  Object.keys(picks).forEach(k => delete picks[k]);
+  if (tid) {
+    try {
+      const res = await fetch('/api/entries?tournament=' + encodeURIComponent(tid), { cache: 'no-store' });
+      entriesAll = res.ok ? (await res.json()).entries || [] : [];
+    } catch { /* none yet */ }
+    const t = tournaments.find(x => x.id === tid);
+    if (t && Array.isArray(t.entries)) {
+      t.entries.forEach((e, i) => { if (e.name && e.division) entriesAll.push({ id: 'cms' + i, name: e.name, club: e.club || '', country: e.country || '', division: e.division, rank: e.rank || e.seed || null }); });
+    }
+  }
+  renderPlayers();
+}
+$('dmTournament').addEventListener('change', () => { loadPublished(); loadEntries(); });
 $('dmOpen').addEventListener('change', e => openPublished(e.target.value));
 
 $('dmFeedback').addEventListener('click', async () => {
@@ -307,8 +384,8 @@ function openMaker() {
   $('dmMain').hidden = false;
   const name = sessionStorage.getItem(NAME_KEY);
   if (name) { $('dmWho').hidden = false; $('dmWhoName').textContent = name; }
-  updateCount();
-  loadTournaments().then(loadPublished);
+  renderCats();
+  loadTournaments().then(() => { loadPublished(); loadEntries(); });
 }
 
 async function signIn(pw) {
@@ -356,14 +433,10 @@ $('dmLoginForm').addEventListener('submit', e => {
 $('dmFormat').addEventListener('change', () => {
   const groups = $('dmFormat').value === 'groups';
   $('dmGroupsField').hidden = !groups;
-  $('dmSizeField').hidden = groups;
   updateCount();
 });
 
-['dmEntries', 'dmSize', 'dmGroups'].forEach(id =>
-  $(id).addEventListener('input', updateCount));
 $('dmGroups').addEventListener('change', updateCount);
-$('dmSize').addEventListener('change', updateCount);
 
 $('dmGenerate').addEventListener('click', generate);
 $('dmRedraw').addEventListener('click', generate);   // a fresh random draw

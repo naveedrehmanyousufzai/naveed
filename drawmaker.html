@@ -53,24 +53,29 @@
   <div class="dm no-print">
     <div class="dm__form">
       <label class="pad__field">
-        <span>Tournament (add new ones from the admin page)</span>
+        <span>Choose tournament</span>
         <select class="pad__name" id="dmTournament"><option value="">Choose a tournament…</option></select>
       </label>
-
       <label class="pad__field">
-        <span>Open a draw already published for it</span>
-        <select class="pad__name" id="dmOpen"><option value="">— none —</option></select>
-      </label>
-
-      <label class="pad__field">
-        <span>Tournament logo (shown on the big screen)</span>
+        <span>Tournament logo</span>
         <input class="pad__name" id="dmLogo" type="file" accept="image/*">
         <img id="dmLogoPreview" class="dm__logo" alt="" hidden>
       </label>
 
       <label class="pad__field">
-        <span>Division (one draw per division)</span>
-        <input class="pad__name" id="dmEvent" placeholder="Boys Under 13">
+        <span>Draw size</span>
+        <select class="pad__name" id="dmSize">
+          <option value="8">8</option><option value="16">16</option>
+          <option value="32" selected>32</option><option value="64">64</option><option value="128">128</option>
+        </select>
+      </label>
+      <label class="pad__field">
+        <span>Wild cards</span>
+        <select class="pad__name" id="dmWild">
+          <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          <option value="6">6</option><option value="8">8</option>
+        </select>
       </label>
 
       <label class="pad__field">
@@ -80,45 +85,32 @@
           <option value="groups">Round robin groups</option>
         </select>
       </label>
-
-      <label class="pad__field" id="dmSizeField">
-        <span>Draw size</span>
-        <select class="pad__name" id="dmSize">
-          <option value="auto">Work it out from the entries</option>
-          <option value="16">16</option>
-          <option value="32">32</option>
-          <option value="64">64</option>
-          <option value="128">128</option>
-        </select>
-      </label>
-
       <label class="pad__field" id="dmGroupsField" hidden>
         <span>Number of groups</span>
         <select class="pad__name" id="dmGroups">
-          <option value="2">2 groups</option>
-          <option value="3">3 groups</option>
-          <option value="4">4 groups</option>
-          <option value="6">6 groups</option>
-          <option value="8">8 groups</option>
+          <option value="2">2 groups</option><option value="3">3 groups</option>
+          <option value="4">4 groups</option><option value="6">6 groups</option><option value="8">8 groups</option>
         </select>
+      </label>
+      <label class="pad__field">
+        <span>Open a draw already published</span>
+        <select class="pad__name" id="dmOpen"><option value="">— none —</option></select>
       </label>
     </div>
 
-    <label class="pad__field dm__entries">
-      <span>Entries — one player per line: <em>Name, Club, Seed, Country</em>. Everything after the name is optional. Leave the seed empty with two commas: <em>Adam Wall, , , England</em></span>
-      <textarea class="pad__name" id="dmEntries" rows="10"
-placeholder="Imran Qureshi, Karachi Gymkhana, 1
-Bilal Ahmed, Sindh Squash Academy, 2
-Hassan Raza, Naya Nazimabad, 3
-Owais Tariq, Hyderabad Club, 4
-Faisal Jamil, Karachi Gymkhana
-Usman Shah, Naya Nazimabad"></textarea>
-    </label>
+    <h3 class="pad__history-title">Categories</h3>
+    <div class="dm__cats" id="dmCats"></div>
 
-    <p class="dm__count" id="dmCount">No entries yet.</p>
+    <h3 class="pad__history-title">Select players</h3>
+    <p class="pad__publish-note">Players come from the tournament's Entries page, highest national rank first.
+    The best ranked fill the main draw (draw size minus wild cards) and are seeded. Tick <b>WC</b> for a wild card.
+    Add or fix players on the <a href="tournaments.html" target="_blank" rel="noopener">tournament page, Entries tab</a>.</p>
+    <div id="dmPlayers"><p class="pad__empty">Choose a tournament and tick a category.</p></div>
+
+    <p class="dm__count" id="dmCount"></p>
 
     <div class="pad__controls dm__controls">
-      <button class="btn btn--solid" id="dmGenerate">Make the draw</button>
+      <button class="btn btn--solid" id="dmGenerate">Make the draws</button>
       <button class="btn btn--ghost" id="dmRedraw" hidden>Draw again</button>
       <button class="btn btn--ghost" id="dmPublish" hidden>Publish draw and matches</button>
       <button class="btn btn--ghost" id="dmPrint" hidden>Print</button>
@@ -126,6 +118,8 @@ Usman Shah, Naya Nazimabad"></textarea>
 
     <p class="pad__publish-state" id="dmState"></p>
   </div>
+
+  <div class="dm__tabs no-print" id="dmTabs" hidden></div>
 
   <div class="dm no-print" id="dmSchedule" hidden>
     <hr class="rule">

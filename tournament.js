@@ -142,24 +142,100 @@ async function drawsPanel(box) {
 /* ============================================================
    ENTRIES
    ============================================================ */
-function entriesPanel() {
-  const list = T.entries || [];
-  if (!list.length) return '<p class="pad__empty">No entries have been published yet.</p>';
-  const names = [...new Set(list.map(e => e.division || 'Entries'))];
+const ENTRY_CATS = ['Boys Under 9','Boys Under 11','Boys Under 13','Boys Under 15','Boys Under 17','Boys Under 19','Men',
+  'Girls Under 9','Girls Under 11','Girls Under 13','Girls Under 15','Girls Under 17','Girls Under 19','Women'];
+let entryList = null;       // from the server
+let isAdmin = false;
+
+const rankKey = e => (Number(e.rank) > 0 ? Number(e.rank) : 1e9);
+
+async function loadEntries() {
+  let list = [];
+  try {
+    const res = await fetch('/api/entries?tournament=' + encodeURIComponent(T.id), { cache: 'no-store' });
+    if (res.ok) list = (await res.json()).entries || [];
+  } catch { /* none */ }
+  entryList = list;
+}
+
+async function checkAdmin() {
+  const pw = sessionStorage.getItem('nr-pass');
+  if (!pw) { isAdmin = false; return; }
+  try {
+    const res = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-password': pw }, body: '{}' });
+    isAdmin = res.ok && (await res.json()).name === 'Admin';
+  } catch { isAdmin = false; }
+}
+
+async function saveEntries() {
+  const res = await fetch('/api/entries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': sessionStorage.getItem('nr-pass') || '' },
+    body: JSON.stringify({ tournament: T.id, entries: entryList })
+  });
+  if (!res.ok) throw new Error(res.status === 401 || res.status === 403 ? 'Sign in as organiser first.' : 'Could not save.');
+  entryList = (await res.json()).entries;
+}
+
+async function entriesPanel(box) {
+  if (entryList === null) { box.innerHTML = '<p class="pad__empty">Loading…</p>'; await Promise.all([loadEntries(), checkAdmin()]); }
+  if (tab !== 'entries') return;
+
+  /* entries typed into the CMS still show too */
+  const cms = (T.entries || []).filter(e => e.name).map((e, i) => ({ id: 'cms' + i, name: e.name, club: e.club || '', division: e.division || 'Entries', rank: e.rank || e.seed || null, cms: true }));
+  const list = entryList.concat(cms);
+  const names = ENTRY_CATS.filter(c => list.some(e => e.division === c))
+    .concat([...new Set(list.map(e => e.division))].filter(d => !ENTRY_CATS.includes(d)));
   const cur = divPick.entries;
   const shown = names.filter(n => !cur || n === cur);
 
-  return `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered.</p>
-    ${divChips('entries', names)}
+  const admin = isAdmin ? `
+    <div class="ent-admin">
+      <h3 class="tsec__h">Add a player</h3>
+      <form id="entForm">
+        <div class="ent-admin__grid">
+          <label class="pad__field"><span>Name</span><input class="pad__name" name="name" required></label>
+          <label class="pad__field"><span>Association / department</span><input class="pad__name" name="club"></label>
+          <label class="pad__field"><span>National rank</span><input class="pad__name" name="rank" type="number" min="1" inputmode="numeric"></label>
+          <label class="pad__field"><span>Category</span><select class="pad__name" name="division">${ENTRY_CATS.map(c => `<option${c === cur ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+          <label class="pad__field"><span>Country (optional)</span><input class="pad__name" name="country"></label>
+        </div>
+        <button class="btn btn--solid" type="submit">Add player</button>
+        <span class="pad__publish-state" id="entState"></span>
+      </form>
+    </div>` : `<p class="pad__publish-note"><a href="drawmaker.html">Organiser? Sign in on the draw maker page</a>, then come back here to add players.</p>`;
+
+  box.innerHTML = `${admin}
+    ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
     ${shown.map(n => {
-      const rows = list.filter(e => (e.division || 'Entries') === n)
-        .sort((a, b) => (Number(a.seed) || 999) - (Number(b.seed) || 999) || String(a.name).localeCompare(b.name));
+      const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
-      <table class="table plain-table"><thead><tr><th>Seed</th><th>Player</th><th>Club</th></tr></thead><tbody>
-      ${rows.map(e => `<tr><td>${esc(e.seed || '')}</td><td>${esc(e.name)}</td><td>${esc(e.club || '')}</td></tr>`).join('')}
+      <table class="table plain-table"><thead><tr><th>Rank</th><th>Player</th><th>Association</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
+      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td>${e.cms ? '' : `<button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button>`}</td>` : ''}</tr>`).join('')}
       </tbody></table>`;
     }).join('')}`;
 }
+
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'entForm') return;
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const st = document.getElementById('entState');
+  const division = f.get('division');
+  entryList.push({ id: Math.random().toString(36).slice(2, 10), name: f.get('name'), club: f.get('club'),
+    country: f.get('country'), division, rank: f.get('rank') || null });
+  try { await saveEntries(); divPick.entries = division; show(); }
+  catch (err) { entryList.pop(); st.textContent = err.message; }
+});
+
+document.addEventListener('click', async e => {
+  const d = e.target.closest('[data-del]');
+  if (!d || !confirm('Remove this player?')) return;
+  const keep = entryList;
+  entryList = entryList.filter(x => x.id !== d.dataset.del);
+  try { await saveEntries(); } catch (err) { entryList = keep; alert(err.message); }
+  show();
+});
 
 /* ============================================================
    MATCHES — who plays whom, where and when
@@ -281,7 +357,7 @@ function show() {
   document.title = `${T.name} — ${TABS.find(t => t[0] === tab)[1]}`;
 
   if (tab === 'info') box.innerHTML = infoPanel();
-  else if (tab === 'entries') box.innerHTML = entriesPanel();
+  else if (tab === 'entries') entriesPanel(box);
   else if (tab === 'referees') box.innerHTML = refereesPanel();
   else if (tab === 'feedback') box.innerHTML = feedbackPanel();
   else if (tab === 'draws') { box.innerHTML = ''; drawsPanel(box); timer = setInterval(() => drawsPanel(box), 30000); }

@@ -1616,3 +1616,16 @@ a.tt__row strong { text-decoration: none; }
 #refPad.pad--play:not(.pad--details) .pad__serve-bar { margin: 8px 0 0; padding: 10px; }
 #refPad.pad--play:not(.pad--details) .pad__controls { margin-top: 10px; }
 .pad__actions { align-items: stretch; } .pad__act-col .btn { height: 100%; }
+
+/* 39. Draw maker: categories, players, tabs, entries admin */
+.dm__cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 22px; max-width: 420px; }
+.dm__cat { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: var(--t-md); cursor: pointer; padding: 6px 0; }
+.dm__cat input { width: 22px; height: 22px; accent-color: var(--gold); }
+.dm__pl { margin: 0 0 22px; }
+.dm__pl small { color: var(--ash); font-weight: 400; margin-left: 8px; }
+.dm__pl input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--gold); }
+.dm__tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+.dm__tabs[hidden] { display: none !important; }
+.ent-admin { border: 1px solid var(--hairline); background: var(--card); padding: 16px; margin: 0 0 22px; }
+.ent-admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ent-del { background: none; border: 0; color: #D13A3A; font-size: 20px; cursor: pointer; padding: 2px 8px; }
