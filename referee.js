@@ -46,6 +46,8 @@ function padFresh() {
     side: null,            // 'L' or 'R': the box the server serves from
     sideFree: true,        // true while the server may still pick the side
     matchId: null,         // which scheduled match this is, if any
+    schedId: null,         // which schedule (tournament division) it belongs to
+    tournamentId: '',
     phase: 'ready',        // ready -> warmup -> play -> interval -> play ... -> done
     phaseStart: now,
     phaseLen: 0,           // length of a timed phase (warm-up, rest), in ms
@@ -404,6 +406,8 @@ function padPayload() {
     server: pad.server,
     side: pad.side,
     match_id: pad.matchId,
+    sched_id: pad.schedId,
+    tournament_id: pad.tournamentId,
     phase: pad.phase,
     phase_left: pad.phase === 'warmup' || pad.phase === 'interval' ? padLeft() : null,
     phase_len: pad.phaseLen,
@@ -789,7 +793,7 @@ function padInit() {
 
 
 /* ---------- Matches assigned to this referee ---------- */
-let schedule = null;
+let schedules = [];
 
 const fmtTime = t => {
   if (!t) return 'time not set';
@@ -801,47 +805,55 @@ async function loadMine() {
   const box = document.getElementById('padMineList');
   try {
     const res = await fetch('/api/schedule', { cache: 'no-store' });
-    schedule = res.ok ? await res.json() : null;
-  } catch { schedule = null; }
+    schedules = res.ok ? (await res.json()).schedules || [] : [];
+  } catch { schedules = []; }
 
-  if (!schedule || !schedule.matches) {
+  if (!schedules.length) {
     box.innerHTML = '<p class="pad__empty">No schedule is published yet. You can still score a match by hand below.</p>';
     return;
   }
 
   const me = sessionStorage.getItem(NAME_KEY) || '';
-  const mine = schedule.matches
-    .filter(m => m.p1 && m.p2 && m.status !== 'done' && m.status !== 'bye')
-    .filter(m => me === 'Admin' || m.referee === me)
-    .sort((a, b) => String(a.time || '~').localeCompare(String(b.time || '~')));
+  const mine = [];
+  schedules.forEach(s => (s.matches || []).forEach(m => {
+    if (!m.p1 || !m.p2 || m.status === 'done' || m.status === 'bye') return;
+    if (me !== 'Admin' && m.referee !== me) return;
+    mine.push({ ...m, sid: s.id, tournament: s.tournament, event: s.event });
+  }));
+  mine.sort((a, b) => String(a.time || '9999').localeCompare(String(b.time || '9999')));
 
   box.innerHTML = mine.length ? mine.map(m => `
-    <div class="mine__card${pad && pad.matchId === m.id ? ' mine__card--on' : ''}">
+    <div class="mine__card${pad && pad.schedId === m.sid && pad.matchId === m.id ? ' mine__card--on' : ''}">
       <div>
         <div class="mine__when">${esc(fmtTime(m.time))}${m.court ? ' · Court ' + esc(m.court) : ''}</div>
         <div class="mine__who">${esc(m.p1.name)} <span class="mine__meta">v</span> ${esc(m.p2.name)}</div>
-        <div class="mine__meta">${esc(schedule.tournament || '')} · ${esc(m.round)}${me === 'Admin' && m.referee ? ' · ' + esc(m.referee) : ''}</div>
+        <div class="mine__meta">${esc(m.tournament || '')} · ${esc(m.event || '')} · ${esc(m.round)}${me === 'Admin' && m.referee ? ' · ' + esc(m.referee) : ''}</div>
       </div>
-      <button class="btn btn--solid" data-start="${esc(m.id)}">Score this match</button>
+      <button class="btn btn--solid" data-start="${esc(m.sid)}|${esc(m.id)}">Score this match</button>
     </div>`).join('')
     : '<p class="pad__empty">Nothing is assigned to you right now. Matches appear here when both players are known.</p>';
 }
 
-function startScheduled(id) {
-  const m = schedule && schedule.matches.find(x => x.id === id);
+function startScheduled(key) {
+  const [sid, mid] = String(key).split('|');
+  const sc = schedules.find(x => x.id === sid);
+  const m = sc && sc.matches.find(x => x.id === mid);
   if (!m) return;
-  if (pad.matchId !== id && (pad.games.length || pad.score[0] || pad.score[1]) && !pad.done) {
+  if (!(pad.schedId === sid && pad.matchId === mid) &&
+      (pad.games.length || pad.score[0] || pad.score[1]) && !pad.done) {
     if (!confirm('Switch to this match? The score on the pad will be cleared.')) return;
   }
   const set = (f, v) => { const el = document.getElementById(f); if (el) el.value = v || ''; };
   set('padCourt', m.court || '1');
-  set('padTournament', schedule.tournament);
-  set('padRound', [schedule.event, m.round].filter(Boolean).join(' · '));
+  set('padTournament', sc.tournament);
+  set('padRound', [sc.event, m.round].filter(Boolean).join(' · '));
   set('padName0', m.p1.name); set('padDept0', m.p1.club);
   set('padName1', m.p2.name); set('padDept1', m.p2.club);
 
   pad = padFresh();
   pad.matchId = m.id;
+  pad.schedId = sid;
+  pad.tournamentId = sc.tournamentId || '';
   padTouched = true;
   padRender();
   padPublish();
@@ -853,12 +865,12 @@ function startScheduled(id) {
 /* Tell the server this match is live / finished, so the schedule and the
    draw update and the winner moves on to the next round. */
 async function padReport(body) {
-  if (!pad.matchId || !sessionStorage.getItem(PASS_KEY)) return;
+  if (!pad.matchId || !pad.schedId || !sessionStorage.getItem(PASS_KEY)) return;
   try {
     await fetch('/api/result', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': sessionStorage.getItem(PASS_KEY) },
-      body: JSON.stringify({ id: pad.matchId, ...body })
+      body: JSON.stringify({ sid: pad.schedId, id: pad.matchId, ...body })
     });
   } catch (err) { console.warn('Could not report the result:', err); }
 }

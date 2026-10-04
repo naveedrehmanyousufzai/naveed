@@ -102,23 +102,23 @@ async function loadSchedule() {
   if (!root) return;
   try {
     const res = await fetch('/api/schedule', { cache: 'no-store' });
-    const s = res.ok ? await res.json() : null;
-    if (!s || !s.matches) { root.innerHTML = ''; return; }
-
-    const rows = s.matches
-      .filter(m => m.status !== 'bye' && (m.p1 || m.p2) && m.p1 && m.p2)
-      .sort((a, b) => String(a.time || '~').localeCompare(String(b.time || '~')));
+    const list = res.ok ? (await res.json()).schedules || [] : [];
+    const rows = [];
+    list.forEach(s => (s.matches || []).forEach(m => {
+      if (m.status === 'bye' || !m.p1 || !m.p2) return;
+      rows.push({ ...m, tournament: s.tournament, event: s.event });
+    }));
     if (!rows.length) { root.innerHTML = ''; return; }
+    rows.sort((a, b) => String(a.time || '9999').localeCompare(String(b.time || '9999')));
 
     root.innerHTML = `
       <hr class="rule">
       <div class="section-head"><h2>Schedule</h2></div>
-      <p class="pad__intro">${esc(s.tournament || '')}${s.event ? ' · ' + esc(s.event) : ''}</p>
       ${rows.map(m => `
         <div class="sched__row">
           <span class="sched__time">${esc(fmt(m.time) || 'Time to be set')}${m.court ? '<br>Court ' + esc(m.court) : ''}</span>
           <span class="sched__who">${esc(m.p1.name)} v ${esc(m.p2.name)}
-            <span class="sched__meta">${esc(m.round)}${m.referee ? ' · Referee ' + esc(m.referee) : ''}</span></span>
+            <span class="sched__meta">${esc(m.tournament || '')} · ${esc(m.event || '')} · ${esc(m.round)}${m.referee ? ' · Referee ' + esc(m.referee) : ''}</span></span>
           <span class="sched__res">${m.status === 'done' ? esc(m.score)
             : m.status === 'live' ? '<span class="tag tag--live">Live</span>' : ''}</span>
         </div>`).join('')}`;

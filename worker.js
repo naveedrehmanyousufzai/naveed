@@ -3,11 +3,12 @@
 
    Everything on this site is a plain file except these addresses:
 
-     /api/draw             the tournament draw (draw.html, draw-admin)
+     /api/draw             draws, one per tournament event (?id= / ?tournament=)
      /api/live             every match running right now
      /api/live?court=1     one court
-     /api/schedule         the tournament's matches (court, time, referee)
+     /api/schedule         matches of each draw: court, time, referee
      /api/result           a referee reports a match live / finished
+     /api/feedback         anyone sends feedback; only the organiser reads it
      /api/verify           checks the referee password, changes nothing
 
    Reading is open to anyone. Writing needs the admin password in
@@ -27,8 +28,9 @@
    so a scoresheet always says who actually refereed it.
    ============================================================ */
 
-const DRAW_KEY = "current-draw";
-const SCHED_KEY = "schedule";
+const DRAW_PREFIX = "draw:";
+const SCHED_PREFIX = "schedule:";
+const FEEDBACK_PREFIX = "feedback:";
 const LIVE_PREFIX = "live:";
 
 /* A match disappears on its own an hour after the last update, so a
@@ -59,6 +61,27 @@ const fail = (msg, status) => json(JSON.stringify({ error: msg }), status);
 function cleanCourt(raw) {
   const c = String(raw || "").trim().replace(/[^A-Za-z0-9 _-]/g, "").slice(0, 24);
   return c || null;
+}
+
+/* Draw and schedule ids look like "sindh-junior-2026__boys-u13". Anything
+   unsafe is dropped before it becomes part of a storage key. */
+function cleanId(raw) {
+  const id = String(raw || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 80);
+  return id || null;
+}
+
+/* Every stored document under a prefix, optionally for one tournament
+   (ids start with the tournament id and "__"). */
+async function listDocs(env, prefix, tournament) {
+  const p = prefix + (tournament ? tournament + "__" : "");
+  const list = await env.DRAW_KV.list({ prefix: p, limit: 200 });
+  const out = [];
+  for (const k of list.keys) {
+    const raw = await env.DRAW_KV.get(k.name);
+    if (!raw) continue;
+    try { out.push(JSON.parse(raw)); } catch { /* skip */ }
+  }
+  return out;
 }
 
 /* The referee list can be written either way:
@@ -126,22 +149,33 @@ function needsAdmin(request, env) {
   return whoIs(request, env) === "Admin" ? null : fail("Organiser password needed.", 403);
 }
 
-/* ---------- The draw: a single shared document ---------- */
+/* ---------- Draws: one document per tournament event ----------
+   GET  /api/draw?id=<id>            one draw
+   GET  /api/draw?tournament=<tid>   {draws:[...]} for that tournament
+   GET  /api/draw                    {draws:[...]} everything
+   POST /api/draw?id=<id>            organiser only                    */
 async function drawRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
 
+  const q = new URL(request.url).searchParams;
+  const id = cleanId(q.get("id"));
+
   if (request.method === "GET") {
-    return json((await env.DRAW_KV.get(DRAW_KEY)) || "null");
+    if (id) return json((await env.DRAW_KV.get(DRAW_PREFIX + id)) || "null");
+    const draws = await listDocs(env, DRAW_PREFIX, cleanId(q.get("tournament")));
+    return json(JSON.stringify({ draws }));
   }
 
   if (request.method === "POST") {
     const denied = needsPassword(request, env) || needsAdmin(request, env);
     if (denied) return denied;
-    const body = await request.text();
-    try { JSON.parse(body); } catch { return fail("Invalid JSON.", 400); }
-    await env.DRAW_KV.put(DRAW_KEY, body);
-    return json(JSON.stringify({ ok: true }));
+    if (!id) return fail("No draw id given.", 400);
+    let doc;
+    try { doc = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    doc.id = id;
+    await env.DRAW_KV.put(DRAW_PREFIX + id, JSON.stringify(doc));
+    return json(JSON.stringify({ ok: true, id }));
   }
 
   return fail("Method not allowed.", 405);
@@ -222,20 +256,26 @@ async function scheduleRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
 
+  const q = new URL(request.url).searchParams;
+  const id = cleanId(q.get("id"));
+
   if (request.method === "GET") {
-    return json((await env.DRAW_KV.get(SCHED_KEY)) || "null");
+    if (id) return json((await env.DRAW_KV.get(SCHED_PREFIX + id)) || "null");
+    const schedules = await listDocs(env, SCHED_PREFIX, cleanId(q.get("tournament")));
+    return json(JSON.stringify({ schedules }));
   }
 
   if (request.method === "POST") {
     const denied = needsPassword(request, env) || needsAdmin(request, env);
     if (denied) return denied;
+    if (!id) return fail("No schedule id given.", 400);
 
     let body;
     try { body = JSON.parse(await request.text()); }
     catch { return fail("Invalid JSON.", 400); }
     if (!body || !Array.isArray(body.matches)) return fail("No matches given.", 400);
 
-    const old = await readJSON(env, SCHED_KEY);
+    const old = await readJSON(env, SCHED_PREFIX + id);
     let out = body;
 
     /* Same draw: take only the organiser's fields, so a result a referee
@@ -250,12 +290,14 @@ async function scheduleRoute(request, env) {
         m.referee = String(n.referee || "").slice(0, 60);
       }
       old.tournament = body.tournament;
+      old.tournamentId = body.tournamentId;
       old.event = body.event;
       old.logo = body.logo;
       out = old;
     }
+    out.id = id;
     out.updated = Date.now();
-    await env.DRAW_KV.put(SCHED_KEY, JSON.stringify(out));
+    await env.DRAW_KV.put(SCHED_PREFIX + id, JSON.stringify(out));
     return json(JSON.stringify(out));
   }
 
@@ -276,7 +318,8 @@ async function resultRoute(request, env) {
   try { r = JSON.parse(await request.text()); }
   catch { return fail("Invalid JSON.", 400); }
 
-  const sched = await readJSON(env, SCHED_KEY);
+  const sid = cleanId(r.sid);
+  const sched = sid && await readJSON(env, SCHED_PREFIX + sid);
   if (!sched) return fail("No schedule is published.", 404);
   const m = sched.matches.find(x => x.id === r.id);
   if (!m) return fail("No such match.", 404);
@@ -292,15 +335,15 @@ async function resultRoute(request, env) {
     m.winner = r.winner;
     m.score = String(r.score || "").slice(0, 80);
     m.finished = Date.now();
-    const draw = await readJSON(env, DRAW_KEY);
+    const draw = await readJSON(env, DRAW_PREFIX + sid);
     advance(sched, m, draw);
-    if (draw) await env.DRAW_KV.put(DRAW_KEY, JSON.stringify(draw));
+    if (draw) await env.DRAW_KV.put(DRAW_PREFIX + sid, JSON.stringify(draw));
   } else {
     return fail("Nothing to record.", 400);
   }
 
   sched.updated = Date.now();
-  await env.DRAW_KV.put(SCHED_KEY, JSON.stringify(sched));
+  await env.DRAW_KV.put(SCHED_PREFIX + sid, JSON.stringify(sched));
   return json(JSON.stringify({ ok: true }));
 }
 
@@ -343,6 +386,49 @@ function advance(sched, m, draw) {
   }
 }
 
+/* ---------- Feedback: anyone may send, only the organiser may read ---------- */
+async function feedbackRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  const q = new URL(request.url).searchParams;
+
+  if (request.method === "POST") {
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    if (b.website) return json(JSON.stringify({ ok: true }));      // a bot filled the hidden field
+    const tid = cleanId(b.tournament);
+    const message = String(b.message || "").trim().slice(0, 2000);
+    if (!tid || message.length < 3) return fail("Please write a message.", 400);
+    const entry = {
+      tournament: tid,
+      name: String(b.name || "").trim().slice(0, 80),
+      contact: String(b.contact || "").trim().slice(0, 120),
+      kind: String(b.kind || "").trim().slice(0, 30),
+      message,
+      at: Date.now(),
+    };
+    const key = FEEDBACK_PREFIX + tid + ":" + String(entry.at).padStart(14, "0") + Math.random().toString(36).slice(2, 6);
+    await env.DRAW_KV.put(key, JSON.stringify(entry));
+    return json(JSON.stringify({ ok: true }));
+  }
+
+  if (request.method === "GET") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    const tid = cleanId(q.get("tournament"));
+    const list = await env.DRAW_KV.list({ prefix: FEEDBACK_PREFIX + (tid ? tid + ":" : ""), limit: 200 });
+    const items = [];
+    for (const k of list.keys) {
+      const raw = await env.DRAW_KV.get(k.name);
+      if (raw) { try { items.push(JSON.parse(raw)); } catch { /* skip */ } }
+    }
+    items.sort((a, b) => b.at - a.at);
+    return json(JSON.stringify({ items }));
+  }
+
+  return fail("Method not allowed.", 405);
+}
+
 /* ---------- Check a password without changing anything ---------- */
 function verifyRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -368,6 +454,7 @@ export default {
     if (path === "/api/live")   return liveRoute(request, env);
     if (path === "/api/schedule") return scheduleRoute(request, env);
     if (path === "/api/result") return resultRoute(request, env);
+    if (path === "/api/feedback") return feedbackRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */
     return env.ASSETS.fetch(request);

@@ -68,8 +68,11 @@ function generate() {
   const entries = parseEntries($('dmEntries').value);
   if (entries.length < 2) { say('Add at least two players.', 'bad'); return; }
 
-  const tournament = $('dmTournament').value.trim();
+  const tournament = tName();
+  const tournamentId = $('dmTournament').value;
   const event = $('dmEvent').value.trim();
+  if (!tournamentId) { say('Choose the tournament first.', 'bad'); return; }
+  if (!event) { say('Type the division, for example Boys Under 13.', 'bad'); return; }
 
   try {
     if ($('dmFormat').value === 'groups') {
@@ -86,6 +89,7 @@ function generate() {
   }
 
   current.tournament = tournament;
+  current.tournamentId = tournamentId;
   current.event = event;
   current.made = Date.now();
   current.madeBy = sessionStorage.getItem(NAME_KEY) || '';
@@ -95,12 +99,22 @@ function generate() {
 
   sched = {
     drawId: String(current.made),
-    tournament, event, logo,
+    tournamentId, tournament, event, logo,
     matches: DrawLogic.matchesFromDraw(current)
   };
   renderMatches();
   say('Draw made. Set courts, times and referees below, then publish.', 'good');
 }
+
+/* The tournament dropdown is filled from content/tournaments.json. */
+let tournaments = [];
+const tName = () => {
+  const o = $('dmTournament').selectedOptions[0];
+  return o && o.value ? o.textContent : '';
+};
+const slugOf = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+/* One draw per tournament and division */
+const sidOf = (tid, event) => tid + '__' + slugOf(event);
 
 /* ---------- The match list ---------- */
 const stamp = t => String(t ?? '').replace(/[&<>"]/g, c => (
@@ -171,10 +185,12 @@ async function post(path, body) {
 }
 
 async function saveSchedule() {
-  sched.tournament = $('dmTournament').value.trim();
-  sched.event = $('dmEvent').value.trim();
+  sched.tournamentId = $('dmTournament').value || sched.tournamentId;
+  sched.tournament = tName() || sched.tournament;
+  sched.event = $('dmEvent').value.trim() || sched.event;
   sched.logo = logo;
-  const saved = await post('/api/schedule', sched);
+  if (!sched.tournamentId || !sched.event) throw new Error('Choose the tournament and type the division first.');
+  const saved = await post('/api/schedule?id=' + encodeURIComponent(sidOf(sched.tournamentId, sched.event)), sched);
   sched = saved;                 // keeps any result a referee just reported
   renderMatches();
 }
@@ -184,7 +200,9 @@ async function publish() {
   if (!current) return;
   say('Publishing…');
   try {
-    await post('/api/draw', current);
+    sched.tournamentId = current.tournamentId;
+    sched.event = current.event;
+    await post('/api/draw?id=' + encodeURIComponent(sidOf(current.tournamentId, current.event)), current);
     await saveSchedule();
     say('Published. The draw and the matches are live on the site.', 'good');
     schedSay('Saved.', 'good');
@@ -220,22 +238,67 @@ $('dmLogo').addEventListener('change', e => {
   img.src = URL.createObjectURL(file);
 });
 
-/* Pick up what is already published, so assigning later rounds does not
-   mean making the draw again. */
-async function loadPublished() {
+/* Fill the tournament list, and the "open a published draw" list for the
+   tournament chosen. */
+async function loadTournaments() {
   try {
-    const res = await fetch('/api/schedule', { cache: 'no-store' });
-    const data = res.ok ? await res.json() : null;
-    if (data && data.matches && !sched) {
-      sched = data;
-      logo = data.logo || '';
-      $('dmTournament').value = data.tournament || '';
-      $('dmEvent').value = data.event || '';
-      if (logo) { $('dmLogoPreview').src = logo; $('dmLogoPreview').hidden = false; }
-      renderMatches();
-    }
-  } catch { /* nothing published yet */ }
+    const res = await fetch('content/tournaments.json');
+    tournaments = (await res.json()).tournaments || [];
+  } catch { tournaments = []; }
+  const sel = $('dmTournament');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">Choose a tournament…</option>' +
+    tournaments.map(t => `<option value="${stamp(t.id)}">${stamp(t.name)}</option>`).join('');
+  sel.value = keep;
 }
+
+let publishedHere = [];
+async function loadPublished() {
+  const tid = $('dmTournament').value;
+  const open = $('dmOpen');
+  open.innerHTML = '<option value="">— none —</option>';
+  publishedHere = [];
+  if (!tid) return;
+  try {
+    const res = await fetch('/api/schedule?tournament=' + encodeURIComponent(tid), { cache: 'no-store' });
+    publishedHere = res.ok ? (await res.json()).schedules || [] : [];
+  } catch { /* nothing published yet */ }
+  open.innerHTML = '<option value="">— none —</option>' +
+    publishedHere.map((s, i) => `<option value="${i}">${stamp(s.event || 'Draw')}</option>`).join('');
+}
+
+function openPublished(i) {
+  const s = publishedHere[Number(i)];
+  if (!s) return;
+  sched = s;
+  current = null;
+  logo = s.logo || '';
+  $('dmEvent').value = s.event || '';
+  $('dmLogoPreview').src = logo; $('dmLogoPreview').hidden = !logo;
+  ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = true; });
+  $('dmPreview').innerHTML = '';
+  renderMatches();
+  say('Opened the published draw. Change courts, times and referees below.', 'good');
+}
+
+$('dmTournament').addEventListener('change', loadPublished);
+$('dmOpen').addEventListener('change', e => openPublished(e.target.value));
+
+$('dmFeedback').addEventListener('click', async () => {
+  const box = $('dmFeedbackList');
+  const tid = $('dmTournament').value;
+  if (!tid) { box.innerHTML = '<p class="pad__empty">Choose a tournament first.</p>'; return; }
+  try {
+    const res = await fetch('/api/feedback?tournament=' + encodeURIComponent(tid), {
+      headers: { 'x-admin-password': sessionStorage.getItem(PASS_KEY) || '' }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const items = (await res.json()).items || [];
+    box.innerHTML = items.length ? items.map(f => `
+      <div class="fbitem"><p class="fbitem__meta">${stamp(f.kind)} · ${stamp(f.name || 'anonymous')}${f.contact ? ' · ' + stamp(f.contact) : ''} · ${stamp(new Date(f.at).toLocaleString())}</p>
+      <p>${stamp(f.message)}</p></div>`).join('') : '<p class="pad__empty">No feedback yet.</p>';
+  } catch (err) { box.innerHTML = '<p class="pad__empty">Could not load feedback: ' + stamp(err.message) + '</p>'; }
+});
 
 /* ---------- Login ---------- */
 function openMaker() {
@@ -244,7 +307,7 @@ function openMaker() {
   const name = sessionStorage.getItem(NAME_KEY);
   if (name) { $('dmWho').hidden = false; $('dmWhoName').textContent = name; }
   updateCount();
-  loadPublished();
+  loadTournaments().then(loadPublished);
 }
 
 async function signIn(pw) {

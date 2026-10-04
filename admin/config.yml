@@ -158,122 +158,151 @@ collections:
             name: "email"
             widget: "string"
 
-  - name: "portal"
-    label: "Squash portal"
+  - name: "tournaments"
+    label: "Tournaments"
     files:
-      - name: "portal"
-        label: "Events, draw and rankings"
-        file: "content/portal.json"
+      - name: "tournaments"
+        label: "Tournament calendar"
+        file: "content/tournaments.json"
         fields:
-          - label: "Events"
-            name: "events"
+          - label: "Tournaments"
+            name: "tournaments"
             widget: "list"
-            label_singular: "Event"
-            summary: "{{fields.name}} - {{fields.status}}"
+            label_singular: "Tournament"
+            summary: "{{fields.name}} - {{fields.start}}"
             fields:
+              - label: "Short id"
+                name: "id"
+                widget: "string"
+                hint: "Lowercase letters, numbers and dashes only, no spaces. For example sindh-junior-2026. It becomes part of the web address, so do not change it later."
               - label: "Tournament name"
                 name: "name"
                 widget: "string"
-              - label: "Dates"
-                name: "dates"
+              - label: "Location"
+                name: "location"
                 widget: "string"
-                hint: "For example 12-15 October 2026"
+                hint: "City and country, for example Karachi, Pakistan"
               - label: "Venue"
                 name: "venue"
                 widget: "string"
+                required: false
+              - label: "Venue address"
+                name: "venue_address"
+                widget: "string"
+                required: false
+              - label: "First day"
+                name: "start"
+                widget: "string"
+                hint: "Year-month-day, for example 2026-10-21"
+              - label: "Last day"
+                name: "end"
+                widget: "string"
+                hint: "Year-month-day, for example 2026-10-25"
               - label: "Status"
                 name: "status"
                 widget: "select"
-                options: ["Live", "Upcoming", "Completed"]
-              - label: "Draw link"
-                name: "draw_url"
+                options: ["auto", "Scheduled", "Upcoming", "In play", "Completed"]
+                default: "auto"
+                hint: "Leave on auto and the site works it out from the dates."
+              - label: "Prize money"
+                name: "prize_money"
                 widget: "string"
                 required: false
-                hint: "Leave empty to hide the button. Use /draw.html for the draw tool."
-              - label: "Live scores link"
-                name: "live_url"
+                hint: "For example PKR 400,000"
+              - label: "Level"
+                name: "level"
                 widget: "string"
                 required: false
-                hint: "Leave empty to hide the button."
-
-          - label: "Tournament draw"
-            name: "bracket"
-            widget: "object"
-            fields:
-              - label: "Tournament name"
-                name: "title"
-                widget: "string"
-              - label: "Subtitle"
-                name: "subtitle"
-                widget: "string"
-                required: false
-              - label: "Rounds"
-                name: "rounds"
+                hint: "For example Provincial, Open, Circuit"
+              - label: "Divisions"
+                name: "divisions"
                 widget: "list"
-                label_singular: "Round"
-                summary: "{{fields.name}}"
+                label_singular: "Division"
+                field: { label: "Division", name: "division", widget: "string" }
+                hint: "For example Boys Under 13, Girls Under 15, Men, Women"
+              - label: "Logo"
+                name: "logo"
+                widget: "image"
+                required: false
+                hint: "Shown on the big-screen scoreboard and the tournament page."
+              - label: "Organiser"
+                name: "organiser"
+                widget: "string"
+                required: false
+              - label: "Promoter"
+                name: "promoters"
+                widget: "string"
+                required: false
+              - label: "Contact email"
+                name: "contact"
+                widget: "string"
+                required: false
+              - label: "Entry deadline"
+                name: "entry_deadline"
+                widget: "string"
+                required: false
+                hint: "Year-month-day and time, for example 2026-10-12T12:00"
+              - label: "Withdrawal deadline"
+                name: "withdrawal_deadline"
+                widget: "string"
+                required: false
+                hint: "For example 2026-10-15T17:00"
+              - label: "About this tournament"
+                name: "description"
+                widget: "text"
+                required: false
+              - label: "How to enter"
+                name: "how_to_enter"
+                widget: "text"
+                required: false
+              - label: "Referees"
+                name: "referees"
+                widget: "list"
+                label_singular: "Referee"
+                summary: "{{fields.name}} - {{fields.role}}"
+                required: false
                 fields:
-                  - label: "Round name"
-                    name: "name"
-                    widget: "string"
-                    hint: "Quarterfinals, Semifinals, Final"
-                  - label: "Matches"
-                    name: "matches"
-                    widget: "list"
-                    label_singular: "Match"
-                    summary: "{{fields.p1}} v {{fields.p2}}"
-                    fields:
-                      - label: "Player 1"
-                        name: "p1"
-                        widget: "string"
-                        required: false
-                      - label: "Player 1 seed"
-                        name: "s1"
-                        widget: "string"
-                        required: false
-                      - label: "Player 2"
-                        name: "p2"
-                        widget: "string"
-                        required: false
-                      - label: "Player 2 seed"
-                        name: "s2"
-                        widget: "string"
-                        required: false
-                      - label: "Score"
-                        name: "score"
-                        widget: "string"
-                        required: false
-                        hint: "For example 11-6, 11-4, 11-8"
-                      - label: "Status"
-                        name: "status"
-                        widget: "select"
-                        options: ["Live", "Upcoming", "Completed"]
-                      - label: "Winner"
-                        name: "winner"
-                        widget: "select"
-                        required: false
-                        options: ["", "1", "2"]
-                        hint: "1 if Player 1 won, 2 if Player 2 won, blank if not finished"
+                  - { label: "Name", name: "name", widget: "string" }
+                  - { label: "Role", name: "role", widget: "string", required: false, hint: "Chief referee, Referee, Marker" }
+              - label: "Entries"
+                name: "entries"
+                widget: "list"
+                label_singular: "Entry"
+                summary: "{{fields.name}} - {{fields.division}}"
+                required: false
+                fields:
+                  - { label: "Player", name: "name", widget: "string" }
+                  - { label: "Club", name: "club", widget: "string", required: false }
+                  - { label: "Division", name: "division", widget: "string", hint: "Must match a division name above" }
+                  - { label: "Seed", name: "seed", widget: "string", required: false }
+              - label: "This is sample data"
+                name: "sample"
+                widget: "boolean"
+                default: false
+                required: false
+                hint: "Turn off once you have replaced the sample text with the real details."
 
-          - label: "Rankings"
-            name: "rankings"
+  - name: "rankings"
+    label: "Rankings"
+    files:
+      - name: "rankings"
+        label: "Player rankings"
+        file: "content/rankings.json"
+        fields:
+          - label: "Categories"
+            name: "categories"
+            widget: "list"
+            label_singular: "Category"
+            field: { label: "Category", name: "category", widget: "string" }
+            hint: "The order here is the order on the site. Names must match the Category on each player exactly."
+          - label: "Players"
+            name: "players"
             widget: "list"
             label_singular: "Player"
-            summary: "{{fields.rank}}. {{fields.name}} - {{fields.points}}"
+            summary: "{{fields.category}} {{fields.rank}}. {{fields.name}}"
             fields:
-              - label: "Rank"
-                name: "rank"
-                widget: "string"
-              - label: "Player name"
-                name: "name"
-                widget: "string"
-              - label: "Category"
-                name: "category"
-                widget: "string"
-                hint: "Senior, U19, U17, U15"
-              - label: "Club"
-                name: "club"
-                widget: "string"
-              - label: "Ranking points"
-                name: "points"
-                widget: "string"
+              - { label: "Category", name: "category", widget: "string", hint: "For example Boys Under 13, Girls Under 15, Men, Women" }
+              - { label: "Rank", name: "rank", widget: "string" }
+              - { label: "Player name", name: "name", widget: "string" }
+              - { label: "Club", name: "club", widget: "string", required: false }
+              - { label: "Ranking points", name: "points", widget: "string", required: false }

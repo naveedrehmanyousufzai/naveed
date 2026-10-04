@@ -53,8 +53,13 @@
   <div class="dm no-print">
     <div class="dm__form">
       <label class="pad__field">
-        <span>Tournament</span>
-        <input class="pad__name" id="dmTournament" placeholder="Sindh Junior Circuit — Leg 3">
+        <span>Tournament (add new ones from the admin page)</span>
+        <select class="pad__name" id="dmTournament"><option value="">Choose a tournament…</option></select>
+      </label>
+
+      <label class="pad__field">
+        <span>Open a draw already published for it</span>
+        <select class="pad__name" id="dmOpen"><option value="">— none —</option></select>
       </label>
 
       <label class="pad__field">
@@ -64,8 +69,8 @@
       </label>
 
       <label class="pad__field">
-        <span>Event</span>
-        <input class="pad__name" id="dmEvent" placeholder="Men's Singles · Main Draw">
+        <span>Division (one draw per division)</span>
+        <input class="pad__name" id="dmEvent" placeholder="Boys Under 13">
       </label>
 
       <label class="pad__field">
@@ -132,6 +137,13 @@ Usman Shah, Naya Nazimabad"></textarea>
       <button class="btn btn--solid" id="dmSaveSched">Save court, time and referee</button>
     </div>
     <p class="pad__publish-state" id="dmSchedState"></p>
+  </div>
+
+  <div class="dm no-print">
+    <hr class="rule">
+    <h3 class="pad__history-title">Feedback from the tournament page</h3>
+    <div class="pad__controls dm__controls"><button class="btn btn--ghost" id="dmFeedback">Show feedback for this tournament</button></div>
+    <div id="dmFeedbackList"></div>
   </div>
 
   <div id="dmPreview"></div>

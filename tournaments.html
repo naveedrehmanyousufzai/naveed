@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NR Squash Portal — tournaments, rankings and live scores</title>
-<meta name="description" content="Tournament calendar, draws, rankings and live scoring for the Sindh squash circuit.">
+<title>Tournament calendar — NR Squash Portal</title>
+<meta name="description" content="Every Sindh squash tournament: location, divisions, dates, prize money and status.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
@@ -27,45 +27,15 @@
   </div>
 </header>
 
-<div class="ticker" aria-label="Current and upcoming tournaments">
-  <div class="ticker__track" id="ticker-root"></div>
-</div>
-
-<div id="live-root" hidden></div>
-
-<section class="hero portal-hero">
-  <div class="wrap hero__inner portal-hero__inner">
-    <div>
-      <p class="soon__tag">NR Squash Portal</p>
-      <h1 class="portal-hero__title">Tournaments<em>&amp; Live Scores</em></h1>
-      <p class="hero__lede">The calendar, draws, entries and rankings for the Sindh circuit —
-      and live scores from every court.</p>
-      <div class="hero__actions">
-        <a class="btn btn--solid" href="tournaments.html">Tournament calendar</a>
-        <a class="btn btn--ghost" href="rankings.html">Rankings</a>
-      </div>
-    </div>
-  </div>
+<section class="wrap pagehead">
+  <h1>Tournament calendar</h1>
+  <p>Every tournament on the circuit. Select one to see the details, draws, entries and matches.</p>
 </section>
 
-<section class="section section--tight wrap" id="upcoming">
+<section class="section section--tight wrap">
   <hr class="rule">
-  <div class="section-head">
-    <h2>Upcoming tournaments</h2>
-    <a class="link-more" href="tournaments.html">View full calendar &rarr;</a>
-  </div>
-  <div class="events" id="upcoming-root"></div>
-</section>
-
-<section class="section section--tight wrap" id="rankings">
-  <hr class="rule">
-  <div class="section-head">
-    <h2>Rankings</h2>
-    <a class="link-more" href="rankings.html">View full rankings &rarr;</a>
-  </div>
-  <p class="pad__intro">The top three in every category.</p>
-  <div id="rankings-root"></div>
-  <p class="more-wrap"><a class="btn btn--ghost" href="rankings.html">View full rankings</a></p>
+  <div class="filters" id="statusFilters" role="group" aria-label="Filter by status"></div>
+  <div id="tournaments-root"><p class="pad__empty">Loading…</p></div>
 </section>
 
 <footer class="footer no-print">
@@ -96,7 +66,7 @@
   </div>
 </footer>
 <script src="portal-common.js"></script>
-<script src="portal.js"></script>
+<script src="tournaments.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

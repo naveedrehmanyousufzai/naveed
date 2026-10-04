@@ -44,16 +44,27 @@
 <script src="drawview.js"></script>
 <script>
 /* Public draw view: read only, refreshes itself so results appear. */
+const wanted = new URLSearchParams(location.search).get('id');
 async function loadDraw() {
+  const root = document.getElementById('drawRoot');
   try {
+    if (wanted) {
+      const res = await fetch('/api/draw?id=' + encodeURIComponent(wanted), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const draw = await res.json();
+      if (draw) DrawView.render(root, draw);
+      else root.innerHTML = '<p class="pad__empty">That draw has not been published yet.</p>';
+      document.getElementById('drawTools').hidden = !draw;
+      return;
+    }
     const res = await fetch('/api/draw', { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const draw = await res.json();
-    DrawView.render(document.getElementById('drawRoot'), draw);
-    document.getElementById('drawTools').hidden = !draw;
+    const draws = (await res.json()).draws || [];
+    root.innerHTML = draws.length ? `<ul class="drawlist">${draws.map(d => `
+      <li><a href="draw.html?id=${encodeURIComponent(d.id)}">${(d.tournament || '') + ' — ' + (d.event || 'Draw')}</a></li>`).join('')}</ul>`
+      : '<p class="pad__empty">No draws have been published yet.</p>';
   } catch (err) {
-    document.getElementById('drawRoot').innerHTML =
-      '<p class="pad__empty">The draw is not available right now. This page will keep trying.</p>';
+    root.innerHTML = '<p class="pad__empty">The draw is not available right now. This page will keep trying.</p>';
   }
 }
 document.getElementById('drawPrint').addEventListener('click', () => window.print());

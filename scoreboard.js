@@ -71,23 +71,30 @@ function show(on) {
 
 /* The tournament logo comes with the schedule, so it is fetched once in a
    while rather than sent with every point. */
-let sched = null;
+let schedules = [];
+let tournamentLogos = {};
 async function loadSchedule() {
   try {
     const res = await fetch('/api/schedule', { cache: 'no-store' });
-    sched = res.ok ? await res.json() : null;
-  } catch { /* keep the last one */ }
+    if (res.ok) schedules = (await res.json()).schedules || [];
+  } catch { /* keep the last ones */ }
+  try {
+    const t = await (await fetch('content/tournaments.json')).json();
+    tournamentLogos = {};
+    (t.tournaments || []).forEach(x => { if (x.logo) tournamentLogos[x.id] = x.logo; });
+  } catch { /* optional */ }
 }
 
 const DEFAULT_LOGO = 'images/nr-logo-light.png';
 function setLogo(d) {
   const img = $('bLogo');
-  const same = sched && sched.logo && (
-    (d.match_id && (sched.matches || []).some(m => m.id === d.match_id)) ||
-    String(sched.tournament || '').trim().toLowerCase() === String(d.tournament || '').trim().toLowerCase());
-  const want = same ? sched.logo : DEFAULT_LOGO;
+  const sc = schedules.find(s => s.id === d.sched_id) ||
+    schedules.find(s => d.tournament && String(s.tournament || '').trim().toLowerCase() === String(d.tournament).trim().toLowerCase());
+  const own = sc && sc.logo;
+  const fromTournament = tournamentLogos[d.tournament_id || (sc && sc.tournamentId)];
+  const want = own || fromTournament || DEFAULT_LOGO;
   if (img.getAttribute('src') !== want) img.src = want;
-  img.classList.toggle('board__logo--event', !!same);
+  img.classList.toggle('board__logo--event', want !== DEFAULT_LOGO);
 }
 
 function paint(d) {
