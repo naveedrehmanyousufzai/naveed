@@ -259,7 +259,7 @@ function standings(group) {
    The organiser then adds court, time and referee to each.
    ============================================================ */
 function matchesFromDraw(draw) {
-  const P = p => p ? { name: p.name, club: p.club || '' } : null;
+  const P = p => p ? { name: p.name, club: p.club || '', country: p.country || '' } : null;
   const blank = (id, round, no) => ({
     id, round, no, p1: null, p2: null, court: '', time: '', referee: '',
     status: 'scheduled', winner: '', score: ''

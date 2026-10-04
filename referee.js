@@ -82,8 +82,8 @@ function padMeta() {
     tournament: val('padTournament'),
     round: val('padRound'),
     players: [
-      { name: val('padName0') || 'Player 1', dept: val('padDept0') },
-      { name: val('padName1') || 'Player 2', dept: val('padDept1') }
+      { name: val('padName0') || 'Player 1', dept: val('padDept0'), country: val('padCountry0') },
+      { name: val('padName1') || 'Player 2', dept: val('padDept1'), country: val('padCountry1') }
     ]
   };
 }
@@ -658,6 +658,62 @@ function padRenderStats(names) {
     '</tbody></table>';
 }
 
+/* ============================================================
+   THE ANNOUNCEMENT
+   Said before the match, and again after each game. Once play
+   starts it disappears and only the tournament name stays, so
+   the referee has nothing extra to look at.
+   ============================================================ */
+function padAnnouncement() {
+  const m = padMeta();
+  const [a, b] = m.players;
+  const who = p => p.name + (p.country ? ' of ' + p.country : '');
+  const won = padGamesWon();
+  const names = [a.name, b.name];
+  const serve = pad.server === null ? '' : `${names[pad.server]} to serve`;
+
+  if (pad.done) {
+    const w = pad.winner ?? (won[0] > won[1] ? 0 : 1);
+    return `Game and match to ${names[w]}, ${won[w]} games to ${won[1 - w]}. ` +
+      (pad.endNote === 'retired' ? `${names[1 - w]} has retired. ` : '') +
+      pad.games.map(g => g[0] + '-' + g[1]).join(', ') + '.';
+  }
+
+  if (pad.phase === 'interval') {
+    const n = pad.games.length;
+    const g = pad.games[n - 1];
+    const w = pad.gw[n - 1];
+    const hi = Math.max(g[0], g[1]), lo = Math.min(g[0], g[1]);
+    const lead = won[0] === won[1]
+      ? (won[0] === 1 ? 'One game all' : `${won[0]} games all`)
+      : `${names[won[0] > won[1] ? 0 : 1]} leads ${Math.max(...won)}\u2013${Math.min(...won)}`;
+    return `${hi}\u2013${lo}, game to ${names[w]}. ${lead}.` +
+      `  Game ${n + 1}${serve ? ': ' + serve : ''}. Love all.`;
+  }
+
+  /* ready / warm-up */
+  const round = m.round ? `${m.round} match` : 'match';
+  return `${m.tournament ? m.tournament + ', ' : ''}${round}, ${who(a)} versus ${who(b)}, ` +
+    `best of ${PAD_GAMES_TO_WIN * 2 - 1} games, ` +
+    (serve ? serve + '. ' : 'choose who serves first. ') + 'Love all.';
+}
+
+function padRenderAnnounce() {
+  const title = document.getElementById('padTitle');
+  const box = document.getElementById('padAnnounce');
+  const m = padMeta();
+  title.textContent = m.tournament;
+  title.hidden = !m.tournament;
+
+  const show = pad.phase !== 'play';
+  box.hidden = !show;
+  if (show) box.textContent = padAnnouncement();
+
+  /* In play: nothing but the score and the controls */
+  const root = document.getElementById('refPad');
+  root.classList.toggle('pad--play', pad.phase === 'play');
+}
+
 function padRender() {
   const names = padNames();
   const won = padGamesWon();
@@ -674,6 +730,7 @@ function padRender() {
   padRenderPhase();
   padRenderPanel();
   padRenderStats(names);
+  padRenderAnnounce();
 
   document.getElementById('padGames').innerHTML =
     `<span class="pad__gamecount">${won[0]}</span>
@@ -736,6 +793,8 @@ function padInit() {
     btn.addEventListener('click', () => padPoint(Number(btn.dataset.player)));
   });
   document.getElementById('padUndo').addEventListener('click', padUndo);
+  document.getElementById('padDetails').addEventListener('click', () =>
+    document.getElementById('refPad').classList.toggle('pad--details'));
 
   document.getElementById('padServeBar').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -782,7 +841,7 @@ function padInit() {
     padPublish();
   });
 
-  ['padName0', 'padName1', 'padDept0', 'padDept1', 'padTournament', 'padRound', 'padCourt']
+  ['padName0', 'padName1', 'padDept0', 'padDept1', 'padCountry0', 'padCountry1', 'padTournament', 'padRound', 'padCourt']
     .forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', () => { padTouched = true; padRender(); padPublishSoon(); });
@@ -831,7 +890,27 @@ async function loadMine() {
       </div>
       <button class="btn btn--solid" data-start="${esc(m.sid)}|${esc(m.id)}">Score this match</button>
     </div>`).join('')
-    : '<p class="pad__empty">Nothing is assigned to you right now. Matches appear here when both players are known.</p>';
+    : `<p class="pad__empty">Nothing is assigned to <strong>${esc(me)}</strong> right now.</p>${padWhyEmpty(me)}`;
+}
+
+/* When the list is empty, say why — it is nearly always a name mismatch,
+   a match whose players are not known yet, or a schedule never saved. */
+function padWhyEmpty(me) {
+  let total = 0, open = 0, unassigned = 0, tbd = 0;
+  const names = {};
+  schedules.forEach(s => (s.matches || []).forEach(m => {
+    if (m.status === 'bye') return;
+    total++;
+    if (m.status === 'done') return;
+    if (!m.p1 || !m.p2) { tbd++; return; }
+    open++;
+    if (!m.referee) unassigned++;
+    else names[m.referee] = (names[m.referee] || 0) + 1;
+  }));
+  const who = Object.entries(names).map(([n, c]) => `${esc(n)} (${c})`).join(', ') || 'nobody';
+  return `<p class="pad__empty">Published: ${schedules.length} draw${schedules.length === 1 ? '' : 's'}, ${total} matches.
+    Ready to play: ${open} — assigned to ${who}; not assigned: ${unassigned}. Waiting for players: ${tbd}.
+    The name must match your login exactly.</p>`;
 }
 
 function startScheduled(key) {
@@ -849,6 +928,7 @@ function startScheduled(key) {
   set('padRound', [sc.event, m.round].filter(Boolean).join(' · '));
   set('padName0', m.p1.name); set('padDept0', m.p1.club);
   set('padName1', m.p2.name); set('padDept1', m.p2.club);
+  set('padCountry0', m.p1.country); set('padCountry1', m.p2.country);
 
   pad = padFresh();
   pad.matchId = m.id;

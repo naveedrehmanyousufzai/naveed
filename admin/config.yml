@@ -273,6 +273,7 @@ collections:
                 fields:
                   - { label: "Player", name: "name", widget: "string" }
                   - { label: "Club", name: "club", widget: "string", required: false }
+                  - { label: "Country", name: "country", widget: "string", required: false }
                   - { label: "Division", name: "division", widget: "string", hint: "Must match a division name above" }
                   - { label: "Seed", name: "seed", widget: "string", required: false }
               - label: "This is sample data"

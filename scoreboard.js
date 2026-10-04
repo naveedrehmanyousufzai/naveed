@@ -118,7 +118,7 @@ function paint(d) {
 
   for (let i = 0; i < 2; i++) {
     txt('bName' + i, p[i]?.name || '');
-    txt('bDept' + i, p[i]?.dept || '');
+    txt('bDept' + i, [p[i]?.dept, p[i]?.country].filter(Boolean).join(' \u00b7 '));
     txt('bPts' + i, score[i]);
     txt('bG' + i, won[i]);
     const serving = d.server === i && !d.done;

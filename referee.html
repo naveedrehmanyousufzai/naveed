@@ -65,6 +65,9 @@
   the rally. While you are signed in the score publishes automatically.</p>
 
   <div class="pad">
+    <p class="pad__title" id="padTitle" hidden></p>
+    <div class="pad__announce" id="padAnnounce" hidden></div>
+
     <!-- Matches the organiser assigned to this referee -->
     <div class="pad__mine" id="padMine">
       <h3 class="pad__history-title">Your matches</h3>
@@ -98,12 +101,20 @@
           <input class="pad__name" id="padDept0" value="">
         </label>
         <label class="pad__field">
+          <span>Player 1 country</span>
+          <input class="pad__name" id="padCountry0" value="">
+        </label>
+        <label class="pad__field">
           <span>Player 2</span>
           <input class="pad__name" id="padName1" value="Player 2">
         </label>
         <label class="pad__field">
           <span>Player 2 department or club</span>
           <input class="pad__name" id="padDept1" value="">
+        </label>
+        <label class="pad__field">
+          <span>Player 2 country</span>
+          <input class="pad__name" id="padCountry1" value="">
         </label>
       </div>
     </div>
@@ -135,6 +146,7 @@
     <div class="pad__controls">
       <button class="btn btn--ghost" id="padUndo">Undo</button>
       <button class="btn btn--ghost" id="padReset">New match</button>
+      <button class="btn btn--ghost" id="padDetails">Details</button>
       <button class="btn btn--ghost" id="padGoLive">Stop publishing</button>
     </div>
 

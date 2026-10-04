@@ -379,7 +379,7 @@ function advance(sched, m, draw) {
   const next = sched.matches.find(x => x.ref && x.ref.ri === ri + 1 && x.ref.mi === Math.floor(mi / 2));
   if (!next) return;
   const slot = mi % 2 === 0 ? "p1" : "p2";
-  next[slot] = winner ? { name: winner.name, club: winner.club || "" } : null;
+  next[slot] = winner ? { name: winner.name, club: winner.club || "", country: winner.country || "" } : null;
   if (sameDraw) {
     const nd = draw.rounds?.[ri + 1]?.matches?.[Math.floor(mi / 2)];
     if (nd) nd[mi % 2 === 0 ? "p1" : "p2"] = winner ? winner.name : "";

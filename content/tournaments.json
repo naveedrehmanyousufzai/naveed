@@ -1,50 +1,267 @@
 {
   "tournaments": [
     {
-      "id": "5th McDonald's 2026",
-      "name": "5th McDonald's National Junior Championship 2026",
+      "id": "sindh-inter-school-2026",
+      "name": "Sindh Inter-School Championship 2026",
       "location": "Karachi, Pakistan",
-      "venue": "Venus Jahangir Khan Squash Academy",
+      "venue": "Sample Club Courts",
       "venue_address": "Karachi",
-      "start": "2026-10-10",
-      "end": "2026-10-14",
+      "start": "2026-10-02",
+      "end": "2026-10-06",
       "status": "auto",
       "prize_money": "PKR 150,000",
-      "level": "National",
+      "level": "Provincial",
       "divisions": [
-        "Boys Under 09",
-        "Boys Under 11",
-        "Girls Under 19",
-        "Boys Under 15"
+        "Boys Under 13",
+        "Boys Under 15",
+        "Girls Under 15"
       ],
-      "logo": "",
-      "organiser": "Sindh Squash Association",
-      "promoters": "Naveed Rehman",
-      "contact": "naveedrehman@sindhsquash.org",
-      "entry_deadline": "2026-09-25",
-      "withdrawal_deadline": "",
-      "description": "",
-      "how_to_enter": "SSA Players forward their entries to naveedrehman@sindhsquash.org before the deadline",
+      "organiser": "Sample Organiser (Sindh Squash Association)",
+      "promoters": "Sample Promoter",
+      "contact": "ceo@naveedrehman.com",
       "referees": [
         {
-          "name": "Muhammad Naseem",
+          "name": "Sample Referee 1",
           "role": "Chief referee"
         },
         {
-          "name": "Faizan Khan",
-          "role": "Referee"
-        },
-        {
-          "name": "Zahid",
-          "role": "Referee"
-        },
-        {
-          "name": "Junaid Rehman",
+          "name": "Sample Referee 2",
           "role": "Referee"
         }
       ],
+      "entry_deadline": "",
+      "withdrawal_deadline": "",
+      "how_to_enter": "Send your name, club, date of birth and division to the organiser by the entry deadline. Entry fees are paid at the venue on the first day.",
+      "description": "Sample tournament. Replace this text from the admin page with the real details: format, schedule, rules and anything players need to know.",
       "entries": [],
-      "sample": false
+      "logo": "",
+      "sample": true
+    },
+    {
+      "id": "sindh-junior-championship-2026",
+      "name": "Sindh Junior Championship 2026",
+      "location": "Karachi, Pakistan",
+      "venue": "Sample Club Courts",
+      "venue_address": "Karachi",
+      "start": "2026-10-21",
+      "end": "2026-10-25",
+      "status": "auto",
+      "prize_money": "PKR 400,000",
+      "level": "Provincial",
+      "divisions": [
+        "Boys Under 9",
+        "Boys Under 11",
+        "Boys Under 13",
+        "Boys Under 15",
+        "Boys Under 17",
+        "Boys Under 19",
+        "Girls Under 11",
+        "Girls Under 15",
+        "Girls Under 19"
+      ],
+      "organiser": "Sample Organiser (Sindh Squash Association)",
+      "promoters": "Sample Promoter",
+      "contact": "ceo@naveedrehman.com",
+      "referees": [
+        {
+          "name": "Sample Referee 1",
+          "role": "Chief referee"
+        },
+        {
+          "name": "Sample Referee 2",
+          "role": "Referee"
+        }
+      ],
+      "entry_deadline": "2026-10-12T12:00",
+      "withdrawal_deadline": "2026-10-15T17:00",
+      "how_to_enter": "Send your name, club, date of birth and division to the organiser by the entry deadline. Entry fees are paid at the venue on the first day.",
+      "description": "Sample tournament. Replace this text from the admin page with the real details: format, schedule, rules and anything players need to know.",
+      "entries": [
+        {
+          "name": "Sample Player 1",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": "1"
+        },
+        {
+          "name": "Sample Player 2",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": "2"
+        },
+        {
+          "name": "Sample Player 3",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": "3"
+        },
+        {
+          "name": "Sample Player 4",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": "4"
+        },
+        {
+          "name": "Sample Player 5",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": ""
+        },
+        {
+          "name": "Sample Player 6",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": ""
+        },
+        {
+          "name": "Sample Player 7",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": ""
+        },
+        {
+          "name": "Sample Player 8",
+          "club": "Sample Club A",
+          "division": "Boys Under 13",
+          "seed": ""
+        },
+        {
+          "name": "Sample Girl 1",
+          "club": "Sample Club B",
+          "division": "Girls Under 15",
+          "seed": ""
+        },
+        {
+          "name": "Sample Girl 2",
+          "club": "Sample Club B",
+          "division": "Girls Under 15",
+          "seed": ""
+        },
+        {
+          "name": "Sample Girl 3",
+          "club": "Sample Club B",
+          "division": "Girls Under 15",
+          "seed": ""
+        },
+        {
+          "name": "Sample Girl 4",
+          "club": "Sample Club B",
+          "division": "Girls Under 15",
+          "seed": ""
+        }
+      ],
+      "logo": "",
+      "sample": true
+    },
+    {
+      "id": "karachi-open-2026",
+      "name": "Karachi Open 2026",
+      "location": "Karachi, Pakistan",
+      "venue": "Sample Club Courts",
+      "venue_address": "Karachi",
+      "start": "2026-11-12",
+      "end": "2026-11-16",
+      "status": "auto",
+      "prize_money": "PKR 1,000,000",
+      "level": "Open",
+      "divisions": [
+        "Men",
+        "Women"
+      ],
+      "organiser": "Sample Organiser (Sindh Squash Association)",
+      "promoters": "Sample Promoter",
+      "contact": "ceo@naveedrehman.com",
+      "referees": [
+        {
+          "name": "Sample Referee 1",
+          "role": "Chief referee"
+        },
+        {
+          "name": "Sample Referee 2",
+          "role": "Referee"
+        }
+      ],
+      "entry_deadline": "",
+      "withdrawal_deadline": "",
+      "how_to_enter": "Send your name, club, date of birth and division to the organiser by the entry deadline. Entry fees are paid at the venue on the first day.",
+      "description": "Sample tournament. Replace this text from the admin page with the real details: format, schedule, rules and anything players need to know.",
+      "entries": [],
+      "logo": "",
+      "sample": true
+    },
+    {
+      "id": "hyderabad-junior-circuit-2026",
+      "name": "Hyderabad Junior Circuit",
+      "location": "Hyderabad, Pakistan",
+      "venue": "Sample Club Courts",
+      "venue_address": "Hyderabad",
+      "start": "2026-12-04",
+      "end": "2026-12-06",
+      "status": "auto",
+      "prize_money": "PKR 120,000",
+      "level": "Circuit",
+      "divisions": [
+        "Boys Under 11",
+        "Boys Under 13",
+        "Girls Under 13"
+      ],
+      "organiser": "Sample Organiser (Sindh Squash Association)",
+      "promoters": "Sample Promoter",
+      "contact": "ceo@naveedrehman.com",
+      "referees": [
+        {
+          "name": "Sample Referee 1",
+          "role": "Chief referee"
+        },
+        {
+          "name": "Sample Referee 2",
+          "role": "Referee"
+        }
+      ],
+      "entry_deadline": "",
+      "withdrawal_deadline": "",
+      "how_to_enter": "Send your name, club, date of birth and division to the organiser by the entry deadline. Entry fees are paid at the venue on the first day.",
+      "description": "Sample tournament. Replace this text from the admin page with the real details: format, schedule, rules and anything players need to know.",
+      "entries": [],
+      "logo": "",
+      "sample": true
+    },
+    {
+      "id": "sindh-closed-2026",
+      "name": "Sindh Closed 2026",
+      "location": "Karachi, Pakistan",
+      "venue": "Sample Club Courts",
+      "venue_address": "Karachi",
+      "start": "2026-09-10",
+      "end": "2026-09-13",
+      "status": "auto",
+      "prize_money": "PKR 300,000",
+      "level": "Provincial",
+      "divisions": [
+        "Men",
+        "Women",
+        "Boys Under 19"
+      ],
+      "organiser": "Sample Organiser (Sindh Squash Association)",
+      "promoters": "Sample Promoter",
+      "contact": "ceo@naveedrehman.com",
+      "referees": [
+        {
+          "name": "Sample Referee 1",
+          "role": "Chief referee"
+        },
+        {
+          "name": "Sample Referee 2",
+          "role": "Referee"
+        }
+      ],
+      "entry_deadline": "",
+      "withdrawal_deadline": "",
+      "how_to_enter": "Send your name, club, date of birth and division to the organiser by the entry deadline. Entry fees are paid at the venue on the first day.",
+      "description": "Sample tournament. Replace this text from the admin page with the real details: format, schedule, rules and anything players need to know.",
+      "entries": [],
+      "logo": "",
+      "sample": true
     }
   ]
 }

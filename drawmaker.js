@@ -15,7 +15,7 @@ let referees = [];           // names the organiser can assign
 let logo = '';               // tournament logo as a small data URL
 
 /* ---------- Reading the entry list ----------
-   One player per line: "Name, Club, Seed". Club and seed optional,
+   One player per line: "Name, Club, Seed, Country". Club and seed optional,
    so "Faisal Jamil" and "Faisal Jamil, , 5" both work. */
 function parseEntries(text) {
   return String(text || '')
@@ -28,6 +28,7 @@ function parseEntries(text) {
       return {
         name: bits[0],
         club: bits[1] || '',
+        country: bits[3] || '',
         seed: Number.isFinite(seed) && seed >= 1 ? seed : undefined
       };
     })

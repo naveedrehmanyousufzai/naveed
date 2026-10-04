@@ -1549,3 +1549,24 @@ a.tt__row, a.tt__row *, .tside__link, .tside__back, .link-more, .event--link, .e
 a.tt__row strong { text-decoration: none; }
 .portal-hero__title { font-size: clamp(32px, 7vw, 76px); overflow-wrap: normal; word-break: normal; }
 .portal-hero__title em { display: block; }
+
+/* ============================================================
+   37. Referee pad — announcement, and a quiet pad while playing
+   ============================================================ */
+.pad__title {
+  font-family: 'Archivo', sans-serif; font-weight: 800; font-size: var(--t-md);
+  color: var(--gold-ink); margin: 0 0 12px; letter-spacing: .02em;
+}
+.pad__announce {
+  background: #E8D82E; color: #0B0F19; border-radius: 14px; padding: 18px 20px;
+  font-family: 'Archivo', sans-serif; font-weight: 800; font-size: clamp(18px, 2.6vw, 26px);
+  line-height: 1.3; text-transform: uppercase; margin-bottom: 18px;
+}
+/* once the game has started, show only the tournament name, scores and controls */
+#refPad.pad--play:not(.pad--details) .pad__intro,
+#refPad.pad--play:not(.pad--details) .pad__mine,
+#refPad.pad--play:not(.pad--details) .pad__setup,
+#refPad.pad--play:not(.pad--details) .pad__history,
+#refPad.pad--play:not(.pad--details) .pad__publish-note,
+#refPad.pad--play:not(.pad--details) .pad__publish-state:not(.pad__publish-state--bad),
+#refPad.pad--play:not(.pad--details) #padStatus:not(.pad__serve-need) { display: none; }
