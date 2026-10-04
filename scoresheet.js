@@ -54,49 +54,34 @@ function renderList() {
     b.addEventListener('click', () => openSheet(b.dataset.id)));
 }
 
-/* ---------- One game, drawn the way a paper sheet is ----------
-   A column per rally. The player who won it shows their new score;
-   the other side is left blank. */
-function gameGrid(m, gameNo) {
-  const rallies = (m.rallies || []).filter(r => r.g === gameNo);
-  if (!rallies.length) return '';
+/* ============================================================
+   THE PRINTED SHEET — the standard squash scoresheet layout:
+   header, five game columns (serve side + points for each player),
+   conduct penalties, winner, duration and the referee's signature.
+   ============================================================ */
+const clock = ms => ms ? new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+const dateOnly = ms => ms ? new Date(ms).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-  const row = i => rallies.map(r =>
-    `<td class="${r.w === i ? 'pt' : 'pt pt--blank'}">${r.w === i ? (i === 0 ? r.a : r.b) : ''}${r.sv === i && r.sd ? `<small class="pt__sd">${esc(r.sd)}</small>` : ''}</td>`
-  ).join('');
-
-  const g = (m.games || [])[gameNo - 1] || ['', ''];
-
-  return `
-  <div class="sheet-game">
-    <div class="sheet-game__head">
-      <h3>Game ${gameNo}</h3>
-      <span class="sheet-game__final">${esc(g[0])}–${esc(g[1])}</span>
-    </div>
-    <div class="sheet-game__scroll">
-      <table class="sheet-grid">
-        <tbody>
-          <tr><th>${esc(m.players?.[0]?.name || 'Player 1')}</th>${row(0)}</tr>
-          <tr><th>${esc(m.players?.[1]?.name || 'Player 2')}</th>${row(1)}</tr>
-        </tbody>
-      </table>
-    </div>
+/* One game: four narrow columns — A serve, A points, B points, B serve */
+function wsGame(m, n, rows) {
+  const rallies = (m.rallies || []).filter(r => r.g === n);
+  const g = (m.games || [])[n - 1];
+  let body = '';
+  for (let i = 0; i < rows; i++) {
+    const r = rallies[i];
+    const a = r && r.w === 0 ? r.a : '';
+    const b = r && r.w === 1 ? r.b : '';
+    const sa = r && r.sv === 0 ? (r.sd || '') : '';
+    const sb = r && r.sv === 1 ? (r.sd || '') : '';
+    body += `<tr><td class="ws__sv">${esc(sa)}</td><td>${esc(a)}</td><td>${esc(b)}</td><td class="ws__sv">${esc(sb)}</td></tr>`;
+  }
+  return `<div class="ws__game">
+    <div class="ws__gn"><span>${n}</span></div>
+    <table class="ws__grid"><thead><tr><th colspan="2">A</th><th colspan="2">B</th></tr></thead><tbody>${body}</tbody></table>
+    <div class="ws__set"><span>Set ${n}</span><b>${g ? esc(g[0]) : ''}</b><b>${g ? esc(g[1]) : ''}</b></div>
   </div>`;
 }
 
-/* Decisions, reviews and warnings, if any were recorded. */
-function statsTable(m) {
-  if (!m.stats) return '';
-  const rows = [['decisions', 'Decisions'], ['stroke', 'Strokes'], ['yesLet', 'Yes lets'],
-    ['noLet', 'No lets'], ['appeals', 'Appeals'], ['reviews', 'Reviews'],
-    ['upheld', 'Upheld'], ['overruled', 'Overruled'], ['warnings', 'Warnings']];
-  if (!rows.some(([k]) => m.stats[0][k] || m.stats[1][k])) return '';
-  return `<table class="sheet-stats"><thead><tr><th></th>${rows.map(r => `<th>${r[1]}</th>`).join('')}</tr></thead><tbody>
-    ${[0, 1].map(i => `<tr><th>${esc(m.players?.[i]?.name || 'Player ' + (i + 1))}</th>${rows.map(([k]) => `<td>${esc(m.stats[i][k])}</td>`).join('')}</tr>`).join('')}
-  </tbody></table>`;
-}
-
-/* ---------- The printable sheet ---------- */
 function openSheet(id) {
   const m = load().find(x => x.id === id);
   if (!m) return;
@@ -104,7 +89,16 @@ function openSheet(id) {
   const view = document.getElementById('sheetView');
   const won = m.games_won || [0, 0];
   const winner = m.winner === 0 || m.winner === 1 ? m.winner : (won[0] > won[1] ? 0 : 1);
-  const games = (m.games || []).length;
+  const p = m.players || [{}, {}];
+  const parts = String(m.round || '').split(' · ');
+  const division = parts.length > 1 ? parts[0] : '';
+  const round = parts.length > 1 ? parts.slice(1).join(' · ') : (m.round || '');
+  const longest = Math.max(0, ...[1, 2, 3, 4, 5].map(n => (m.rallies || []).filter(r => r.g === n).length));
+  const rows = Math.max(30, longest + 2);
+  const minutes = m.started && m.finished ? Math.max(1, Math.round((m.finished - m.started) / 60000)) : '';
+  const pen = (m.events || []).filter(e => ['conduct', 'warning'].includes(e.type) || /warning|conduct|penalt/i.test(e.text || ''));
+  const penRows = Array.from({ length: Math.max(4, pen.length) }, (_, i) => pen[i]);
+  const who = i => esc(p[i]?.name || '') + (p[i]?.dept ? ' — ' + esc(p[i].dept) : '') + (p[i]?.country ? ' (' + esc(p[i].country) + ')' : '');
 
   view.innerHTML = `
   <div class="sheet">
@@ -113,49 +107,47 @@ function openSheet(id) {
       <button class="btn btn--ghost" id="sheetBack">Back to the list</button>
     </div>
 
-    <article class="sheet-paper">
-      <header class="sheet-head">
-        <img class="sheet-logo" src="images/nr-logo.png" alt="">
-        <div>
-          <h2 class="sheet-title">${esc(m.tournament || 'Match')}</h2>
-          <p class="sheet-sub">${esc(m.round || '')}</p>
+    <article class="ws">
+      <div class="ws__top">
+        <div class="ws__logo"><img src="images/nr-logo.png" alt=""></div>
+        <div class="ws__event">${esc(m.tournament || 'Event name')}</div>
+        <div class="ws__logo ws__logo--r"></div>
+      </div>
+
+      <div class="ws__bar">
+        <div class="ws__loc">${esc(dateOnly(m.finished))}</div>
+        <table class="ws__warm"><tr><th colspan="3">Warm-up</th></tr>
+          ${[1, 2, 3, 4, 5].map(n => `<tr><td>${n}</td><td></td><td></td></tr>`).join('')}</table>
+        <div class="ws__date"><span>Date</span>${esc(dateOnly(m.started || m.finished))}</div>
+      </div>
+
+      <div class="ws__info">
+        <div class="ws__c ws__c--wide"><span>Division</span>${esc(division)}</div>
+        <div class="ws__c"><span>Round</span>${esc(round)}</div>
+        <div class="ws__c"><span>Court</span>${esc(m.court || '')}</div>
+        <div class="ws__c"><span>Time</span>${esc(clock(m.started))}</div>
+        <div class="ws__c ws__c--wide"><span>Central referee</span>${esc(m.referee || '')}</div>
+        <div class="ws__c ws__c--half"><span>A</span>${who(0)}</div>
+        <div class="ws__c ws__c--half"><span>B</span>${who(1)}</div>
+        <div class="ws__c ws__c--wide"><span>Marker</span></div>
+      </div>
+
+      <div class="ws__games">${[1, 2, 3, 4, 5].map(n => wsGame(m, n, rows)).join('')}</div>
+
+      <div class="ws__bottom">
+        <table class="ws__pen">
+          <thead><tr><th colspan="5">Conduct penalties</th></tr>
+          <tr><th>Player</th><th>Level of penalty</th><th>Reason</th><th>Game</th><th>Score</th></tr></thead>
+          <tbody>${penRows.map(e => `<tr>
+            <td>${e ? esc(p[e.p]?.name || '') : ''}</td><td>${e ? esc(e.type === 'warning' ? 'Warning' : e.text) : ''}</td>
+            <td></td><td>${e ? esc(e.g) : ''}</td><td>${e ? esc(e.a + '-' + e.b) : ''}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="ws__end">
+          <div class="ws__win"><span>Winner</span>${esc(p[winner]?.name || '')}<small>${esc(won[winner])}–${esc(won[1 - winner])} · ${(m.games || []).map(g => esc(g[0]) + '-' + esc(g[1])).join(', ')}${m.end_note === 'retired' ? ' · retirement' : m.end_note === 'conduct' ? ' · conduct' : ''}</small></div>
+          <div class="ws__dur"><span>Match duration (minutes)</span>${esc(minutes)}</div>
+          <div class="ws__sig"><span>Central referee's signature</span></div>
         </div>
-        <p class="sheet-date">${esc(when(m.finished))}</p>
-      </header>
-
-      <table class="sheet-players">
-        <tbody>
-          <tr${winner === 0 ? ' class="is-winner"' : ''}>
-            <td class="sheet-players__name">${esc(m.players?.[0]?.name || '')}</td>
-            <td class="sheet-players__dept">${esc(m.players?.[0]?.dept || '')}</td>
-            <td class="sheet-players__games">${esc(won[0])}</td>
-          </tr>
-          <tr${winner === 1 ? ' class="is-winner"' : ''}>
-            <td class="sheet-players__name">${esc(m.players?.[1]?.name || '')}</td>
-            <td class="sheet-players__dept">${esc(m.players?.[1]?.dept || '')}</td>
-            <td class="sheet-players__games">${esc(won[1])}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p class="sheet-result">
-        <strong>${esc(m.players?.[winner]?.name || '')}</strong> won
-        ${esc(won[winner])}–${esc(won[1 - winner])}
-        (${(m.games || []).map(g => esc(g[0]) + '–' + esc(g[1])).join(', ')})
-        · ${games} game${games === 1 ? '' : 's'}
-        · ${esc(mins(m.started, m.finished))}
-        ${m.end_note === 'retired' ? '· retirement' : m.end_note === 'conduct' ? '· conduct' : ''}
-      </p>
-
-      ${statsTable(m)}
-
-      ${[1, 2, 3, 4, 5].map(n => gameGrid(m, n)).join('')}
-
-      <footer class="sheet-foot">
-        <div class="sheet-sign"><span></span><p>Referee${m.referee ? ' \u2014 ' + esc(m.referee) : ''}</p></div>
-        <div class="sheet-sign"><span></span><p>Marker</p></div>
-        <p class="sheet-mark">naveedrehman.com</p>
-      </footer>
+      </div>
     </article>
   </div>`;
 

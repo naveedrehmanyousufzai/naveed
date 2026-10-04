@@ -373,6 +373,7 @@ function padArchive() {
       referee: sessionStorage.getItem(NAME_KEY) || '',
       tournament: m.tournament,
       round: m.round,
+      court: m.court,
       players: m.players,
       games: pad.games,
       games_won: padGamesWon(),

@@ -1652,3 +1652,60 @@ a.tt__row strong { text-decoration: none; }
 .mm__row dt { width: 84px; flex: none; color: var(--ash); font-size: var(--t-sm); }
 .mm__row dd { margin: 0; font-weight: 600; }
 .mm__tbd { color: var(--ash); font-weight: 400; }
+
+/* 41. Scoresheet in the standard squash layout (black on white, A4 portrait) */
+.ws { background: #fff; color: #000; max-width: 794px; margin: 18px auto 40px; border: 1.5px solid #000; font-family: 'Public Sans', Arial, sans-serif; font-size: 12px; }
+.ws * { box-sizing: border-box; }
+.ws__top { display: grid; grid-template-columns: 1fr 1.2fr 1fr; border-bottom: 1.5px solid #000; min-height: 70px; }
+.ws__top > div { display: flex; align-items: center; justify-content: center; padding: 8px; border-right: 1.5px solid #000; }
+.ws__top > div:last-child { border-right: 0; }
+.ws__logo img { max-height: 52px; max-width: 100%; }
+.ws__event { color: #D4161C; font-family: 'Archivo', Arial, sans-serif; font-weight: 800; font-size: 18px; text-align: center; }
+.ws__bar { display: grid; grid-template-columns: 1fr 120px 120px; border-bottom: 1.5px solid #000; }
+.ws__loc { background: #000; color: #fff; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; padding: 6px; }
+.ws__warm { border-collapse: collapse; width: 100%; font-size: 9px; }
+.ws__warm th, .ws__warm td { border: 1px solid #000; height: 11px; padding: 0 2px; text-align: left; }
+.ws__warm th { text-align: center; }
+.ws__date, .ws__c, .ws__win, .ws__dur, .ws__sig { position: relative; padding: 14px 6px 4px; font-weight: 700; }
+.ws__date { border-left: 1px solid #000; }
+.ws span:first-child:not(.ws__sv) { }
+.ws__date span, .ws__c span, .ws__win span, .ws__dur span, .ws__sig span { position: absolute; top: 1px; left: 5px; font-size: 9px; font-weight: 400; color: #333; }
+.ws__info { display: grid; grid-template-columns: repeat(12, 1fr); border-bottom: 1.5px solid #000; }
+.ws__c { border-right: 1px solid #000; border-bottom: 1px solid #000; min-height: 34px; grid-column: span 4; }
+.ws__info > .ws__c:nth-child(1) { grid-column: span 3; }
+.ws__info > .ws__c:nth-child(2), .ws__info > .ws__c:nth-child(3), .ws__info > .ws__c:nth-child(4) { grid-column: span 2; }
+.ws__info > .ws__c:nth-child(5) { grid-column: span 3; border-right: 0; }
+.ws__info > .ws__c:nth-child(8) { border-right: 0; }
+.ws__info > .ws__c:nth-child(n+6) { border-bottom: 0; }
+.ws__games { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1.5px solid #000; }
+.ws__game { border-right: 1.5px solid #000; }
+.ws__game:last-child { border-right: 0; }
+.ws__gn { text-align: center; padding: 4px 0; border-bottom: 1px solid #000; }
+.ws__gn span { display: inline-flex; width: 22px; height: 22px; border: 1.5px solid #000; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.ws__grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ws__grid th { font-size: 9px; border-bottom: 1px solid #000; border-right: 1px solid #000; height: 12px; }
+.ws__grid td { border: 1px solid #777; height: 16px; text-align: center; font-size: 10px; font-weight: 700; padding: 0; font-variant-numeric: tabular-nums; }
+.ws__grid td:nth-child(2) { border-right: 1px solid #000; }
+.ws__grid .ws__sv { font-size: 8px; font-weight: 400; color: #333; }
+.ws__set { display: grid; grid-template-columns: 1.2fr 1fr 1fr; border-top: 1.5px solid #000; font-size: 9px; }
+.ws__set span, .ws__set b { padding: 4px 3px; border-right: 1px solid #000; font-weight: 400; }
+.ws__set b { font-size: 12px; text-align: center; font-weight: 800; }
+.ws__set b:last-child { border-right: 0; }
+.ws__bottom { display: grid; grid-template-columns: 1.15fr 1fr; }
+.ws__pen { border-collapse: collapse; width: 100%; font-size: 9px; border-right: 1.5px solid #000; }
+.ws__pen th, .ws__pen td { border: 1px solid #000; padding: 2px 3px; height: 17px; text-align: left; }
+.ws__pen th { background: #fff; font-weight: 700; }
+.ws__pen thead tr:first-child th { text-align: center; }
+.ws__end { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; }
+.ws__win { border-bottom: 1px solid #000; border-right: 1px solid #000; min-height: 44px; }
+.ws__win small { display: block; font-weight: 400; font-size: 9px; }
+.ws__dur { border-bottom: 1px solid #000; }
+.ws__sig { grid-column: 1 / -1; min-height: 70px; background: linear-gradient(to top right, transparent calc(50% - .5px), #000, transparent calc(50% + .5px)); }
+.ws__sig span { top: auto; bottom: 3px; background: #fff; padding: 0 3px; }
+@media (max-width: 760px) { .ws { font-size: 10px; } .ws__event { font-size: 13px; } .ws__grid td { height: 12px; font-size: 8px; } }
+@media print {
+  @page { size: A4 portrait; margin: 8mm; }
+  .ws { margin: 0; max-width: none; width: 100%; break-inside: avoid; }
+  .ws__grid td { height: 4.3mm; }
+  .ws, .ws * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
