@@ -421,6 +421,8 @@ async function entriesRoute(request, env) {
         country: s(e.country, 40),
         division: s(e.division, 40),
         rank: Number.isFinite(rank) && rank > 0 ? rank : null,
+        attendance: e.attendance === "P" || e.attendance === "A" ? e.attendance : "",
+        wc: !!e.wc,
       };
     }).filter(e => e.name);
     await env.DRAW_KV.put(ENTRIES_PREFIX + tid, JSON.stringify({ entries, updated: Date.now() }));

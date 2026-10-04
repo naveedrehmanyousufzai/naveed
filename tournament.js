@@ -186,9 +186,8 @@ async function entriesPanel(box) {
   const list = entryList.concat(cms);
   const names = ENTRY_CATS.filter(c => list.some(e => e.division === c))
     .concat([...new Set(list.map(e => e.division))].filter(d => !ENTRY_CATS.includes(d)));
-  if (!names.includes(divPick.entries)) divPick.entries = names[0] || '';
   const cur = divPick.entries;
-  const shown = names.filter(n => n === cur);
+  const shown = names.filter(n => !cur || n === cur);
 
   const admin = isAdmin ? `
     <div class="ent-admin">
@@ -204,21 +203,10 @@ async function entriesPanel(box) {
         <button class="btn btn--solid" type="submit">Add player</button>
         <span class="pad__publish-state" id="entState"></span>
       </form>
-      <hr class="rule">
-      <h3 class="tsec__h">Import from a Word file</h3>
-      <p class="pad__publish-note">Use a table with the columns <b>Category, Rank, Name, Association, Country</b>. Excel files saved as CSV work too.
-      <a href="entries-template.docx" download>Download the template</a>.</p>
-      <input class="pad__name" type="file" id="entFile" accept=".docx,.csv,.txt">
-      <div id="entPreview"></div>
-    </div>` : `<form id="entLogin" class="ent-admin">
-      <h3 class="tsec__h">Organiser sign-in</h3>
-      <div class="ent-admin__grid"><label class="pad__field"><span>Admin password</span><input class="pad__name" type="password" name="pw" autocomplete="current-password" required></label></div>
-      <button class="btn btn--solid" type="submit">Sign in to add players</button>
-      <span class="pad__publish-state" id="entLoginState"></span>
-    </form>`;
+    </div>` : `<p class="pad__publish-note"><a href="drawmaker.html">Organiser? Sign in on the draw maker page</a>, then come back here to add players.</p>`;
 
   box.innerHTML = `${admin}
-    ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names, true)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
+    ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
     ${shown.map(n => {
       const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
@@ -229,17 +217,6 @@ async function entriesPanel(box) {
 }
 
 document.addEventListener('submit', async e => {
-  if (e.target.id === 'entLogin') {
-    e.preventDefault();
-    const pw = new FormData(e.target).get('pw');
-    const st = document.getElementById('entLoginState');
-    st.textContent = 'Checking…';
-    sessionStorage.setItem('nr-pass', pw);
-    await checkAdmin();
-    if (!isAdmin) { sessionStorage.removeItem('nr-pass'); st.textContent = 'Wrong password, or not the organiser password.'; return; }
-    show();
-    return;
-  }
   if (e.target.id !== 'entForm') return;
   e.preventDefault();
   const f = new FormData(e.target);
@@ -258,150 +235,6 @@ document.addEventListener('click', async e => {
   entryList = entryList.filter(x => x.id !== d.dataset.del);
   try { await saveEntries(); } catch (err) { entryList = keep; alert(err.message); }
   show();
-});
-
-/* ============================================================
-   IMPORT — read a Word table (or CSV) and list the players found
-   ============================================================ */
-function normCategory(text) {
-  const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ');
-  if (!t || t.length > 40) return null;
-  if (/^(open )?(men|mens|men's|male)\b/.test(t) && !/under|u\d/.test(t)) return 'Men';
-  if (/^(open )?(women|womens|women's|ladies|female)\b/.test(t) && !/under|u\d/.test(t)) return 'Women';
-  const m = t.match(/\b(boys?|girls?|b|g)\s*-?\s*(?:u|under|u-)?\s*-?\s*(9|11|13|15|17|19)\b/);
-  if (m) return (m[1][0] === 'b' ? 'Boys' : 'Girls') + ' Under ' + m[2];
-  const m2 = t.match(/\bunder\s*(9|11|13|15|17|19)\s*(boys?|girls?)\b/);
-  if (m2) return (m2[2][0] === 'b' ? 'Boys' : 'Girls') + ' Under ' + m2[1];
-  return null;
-}
-
-function parseCsv(text) {
-  return text.split(/\r?\n/).filter(l => l.trim()).map(l => {
-    const out = []; let cur = '', q = false;
-    for (const ch of l) {
-      if (ch === '"') q = !q;
-      else if ((ch === ',' || ch === '\t' || ch === ';') && !q) { out.push(cur.trim()); cur = ''; }
-      else cur += ch;
-    }
-    out.push(cur.trim()); return out;
-  });
-}
-
-/* A Word document -> [{ heading } | { row: [cells] }] in reading order */
-async function readDocx(file) {
-  if (!window.JSZip) {
-    await new Promise((ok, no) => {
-      const sc = document.createElement('script');
-      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      sc.onload = ok; sc.onerror = () => no(new Error('Could not load the file reader. Check your connection.'));
-      document.head.appendChild(sc);
-    });
-  }
-  const zip = await JSZip.loadAsync(await file.arrayBuffer());
-  const xml = await zip.file('word/document.xml').async('string');
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-  const textOf = el => Array.from(el.getElementsByTagNameNS(W, 't')).map(t => t.textContent).join('').trim();
-  const body = doc.getElementsByTagNameNS(W, 'body')[0];
-  const items = [];
-  for (const node of body.children) {
-    if (node.localName === 'p') {
-      const t = textOf(node); if (t) items.push({ heading: t });
-    } else if (node.localName === 'tbl') {
-      for (const tr of node.getElementsByTagNameNS(W, 'tr')) {
-        items.push({ row: Array.from(tr.getElementsByTagNameNS(W, 'tc')).map(textOf) });
-      }
-    }
-  }
-  return items;
-}
-
-function extractPlayers(items) {
-  const out = [];
-  let cat = null, cols = null;
-  const num = v => /^\d{1,4}$/.test(String(v).trim());
-  for (const it of items) {
-    if (it.heading !== undefined) { const c = normCategory(it.heading); if (c) cat = c; continue; }
-    const row = it.row.map(c => c.trim());
-    if (!row.some(Boolean)) continue;
-    const low = row.map(c => c.toLowerCase());
-    if (low.some(c => /^(name|player|player name)$/.test(c))) {          // header row
-      const find = re => low.findIndex(c => re.test(c));
-      cols = { name: find(/^(name|player|player name)$/), rank: find(/rank|seed|^#$|^no\.?$/),
-        club: find(/associat|club|dept|department|academy|team/), cat: find(/categ|division|event/),
-        country: find(/countr|nation/) };
-      continue;
-    }
-    if (!cols) {                                                          // no header: guess rank, name, association
-      const r0 = num(row[0]);
-      cols = r0 ? { rank: 0, name: 1, club: 2, cat: -1, country: 3 } : { rank: -1, name: 0, club: 1, cat: -1, country: 2 };
-      cols.guessed = true;
-    }
-    const name = row[cols.name]; if (!name || /^\d+$/.test(name)) continue;
-    const rowCat = cols.cat >= 0 ? normCategory(row[cols.cat]) : null;
-    if (!rowCat && row.length === 1) { const c = normCategory(name); if (c) { cat = c; continue; } }
-    out.push({
-      name, club: cols.club >= 0 ? row[cols.club] || '' : '',
-      rank: cols.rank >= 0 && num(row[cols.rank]) ? Number(row[cols.rank]) : null,
-      country: cols.country >= 0 ? row[cols.country] || '' : '',
-      division: rowCat || cat || '', include: true
-    });
-  }
-  return out;
-}
-
-let importRows = [];
-function renderImport() {
-  const box = document.getElementById('entPreview');
-  if (!importRows.length) { box.innerHTML = ''; return; }
-  const missing = importRows.filter(r => r.include && !r.division).length;
-  box.innerHTML = `<p class="pad__intro">${importRows.length} players found. Check the category of each, then import.</p>
-    <table class="table plain-table"><thead><tr><th>Add</th><th>Rank</th><th>Name</th><th>Association</th><th>Category</th></tr></thead><tbody>
-    ${importRows.map((r, i) => `<tr><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include ? 'checked' : ''}></td>
-      <td>${esc(r.rank || '–')}</td><td>${esc(r.name)}</td><td>${esc(r.club)}</td>
-      <td><select class="pad__name" data-i="${i}" data-f="division"><option value="">— choose —</option>${ENTRY_CATS.map(c => `<option${c === r.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></td></tr>`).join('')}
-    </tbody></table>
-    <button class="btn btn--solid" id="entImport" ${missing ? 'disabled' : ''}>Import ${importRows.filter(r => r.include).length} players</button>
-    <span class="pad__publish-state" id="entImpState">${missing ? missing + ' still need a category.' : ''}</span>`;
-}
-
-document.addEventListener('change', async e => {
-  if (e.target.id === 'entFile') {
-    const f = e.target.files[0]; if (!f) return;
-    const box = document.getElementById('entPreview');
-    box.innerHTML = '<p class="pad__empty">Reading…</p>';
-    try {
-      const items = /\.docx$/i.test(f.name)
-        ? await readDocx(f)
-        : parseCsv(await f.text()).map(row => ({ row }));
-      importRows = extractPlayers(items);
-      if (!importRows.length) box.innerHTML = '<p class="pad__empty">No players found. Use the template: a table with Category, Rank, Name, Association, Country.</p>';
-      else renderImport();
-    } catch (err) { box.innerHTML = '<p class="pad__empty">Could not read the file: ' + esc(err.message) + '</p>'; }
-    return;
-  }
-  const i = e.target.dataset && e.target.dataset.i;
-  if (i !== undefined && e.target.closest('#entPreview')) {
-    importRows[Number(i)][e.target.dataset.f] = e.target.dataset.f === 'include' ? e.target.checked : e.target.value;
-    renderImport();
-  }
-});
-
-document.addEventListener('click', async e => {
-  if (e.target.id !== 'entImport') return;
-  const st = document.getElementById('entImpState');
-  const add = importRows.filter(r => r.include && r.division);
-  const before = entryList.slice();
-  let added = 0;
-  for (const r of add) {
-    const dup = entryList.some(x => x.division === r.division && x.name.toLowerCase() === r.name.toLowerCase());
-    if (dup) continue;
-    entryList.push({ id: Math.random().toString(36).slice(2, 10), name: r.name, club: r.club, country: r.country, division: r.division, rank: r.rank });
-    added++;
-  }
-  st.textContent = 'Saving…';
-  try { await saveEntries(); importRows = []; show(); }
-  catch (err) { entryList = before; st.textContent = err.message; }
 });
 
 /* ============================================================

@@ -22,7 +22,6 @@ const CATS = [
   ['MEN', 'Men'], ['WOMEN', 'Women']
 ];
 let entriesAll = [];                 // the tournament's entries
-const picks = {};                    // label -> { id: 'main' | 'wc' | '' }
 const drafts = {};                   // label -> { current, sched }
 let activeDraft = '';
 
@@ -36,12 +35,17 @@ function renderCats() {
     <label class="dm__cat"><input type="checkbox" id="cat_${c}" data-cat="${stamp(label)}"> <span>${c === 'MEN' ? 'Men' : c === 'WOMEN' ? 'Women' : c}</span></label>`).join('');
 }
 
-/* Default picks for a category: best ranked fill the main draw */
-function defaultPicks(label) {
-  const list = entriesAll.filter(e => e.division === label).sort(byRank);
-  const p = {};
-  list.forEach((e, i) => { p[e.id] = i < mainSlots() ? 'main' : ''; });
-  picks[label] = p;
+/* A player is in the draw when marked Present (P). WC marks a wild card. */
+const isIn = e => e.attendance === 'P';
+
+function seedsFor(label) {
+  const size = Number($('dmSize').value);
+  const seedCount = size >= 64 ? 16 : size >= 32 ? 8 : size >= 16 ? 4 : 2;
+  const m = new Map();
+  let n = 0;
+  entriesAll.filter(e => e.division === label && isIn(e) && !e.wc && e.rank).sort(byRank)
+    .forEach(e => { if (n < seedCount) m.set(e.id, ++n); });
+  return m;
 }
 
 function renderPlayers() {
@@ -51,37 +55,51 @@ function renderPlayers() {
   if (!labels.length) { box.innerHTML = '<p class="pad__empty">Tick one or more categories above.</p>'; updateCount(); return; }
 
   box.innerHTML = labels.map(label => {
-    if (!picks[label]) defaultPicks(label);
     const list = entriesAll.filter(e => e.division === label).sort(byRank);
     if (!list.length) return `<div class="dm__pl"><h4 class="dm__round">${stamp(label)}</h4><p class="pad__empty">No entries yet. Add players on the tournament page, Entries tab.</p></div>`;
-    const p = picks[label];
-    const main = list.filter(e => p[e.id] === 'main').length;
-    const wc = list.filter(e => p[e.id] === 'wc').length;
+    const seeds = seedsFor(label);
+    const present = list.filter(isIn);
+    const wc = present.filter(e => e.wc).length;
+    const main = present.length - wc;
+    const over = main > mainSlots();
     return `<div class="dm__pl" data-label="${stamp(label)}">
-      <h4 class="dm__round">${stamp(label)} <small>main ${main}/${mainSlots()} · wild cards ${wc}/${$('dmWild').value}</small></h4>
-      <table class="table plain-table"><thead><tr><th>In</th><th>WC</th><th>Rank</th><th>Player</th><th>Association</th></tr></thead><tbody>
-      ${list.map(e => `<tr>
-        <td><input type="checkbox" data-in="${stamp(e.id)}" ${p[e.id] ? 'checked' : ''}></td>
-        <td><input type="checkbox" data-wc="${stamp(e.id)}" ${p[e.id] === 'wc' ? 'checked' : ''}></td>
-        <td>${e.rank || '–'}</td><td>${stamp(e.name)}</td><td>${stamp(e.club)}</td></tr>`).join('')}
+      <h4 class="dm__round">${stamp(label)} <small>present ${present.length} · main ${main}/${mainSlots()} · wild cards ${wc}/${$('dmWild').value}</small></h4>
+      ${over ? '<p class="pad__publish-state pad__publish-state--bad">Too many present for this draw size. Mark some Absent, or choose a bigger draw.</p>' : ''}
+      <table class="table plain-table"><thead><tr><th>Seed</th><th>Name</th><th>Rank</th><th>Association</th><th>P</th><th>A</th><th>WC</th></tr></thead><tbody>
+      ${list.map(e => `<tr${e.attendance === 'A' ? ' class="dm__absent"' : ''}>
+        <td>${seeds.get(e.id) || '–'}</td><td>${stamp(e.name)}</td><td>${e.rank || '–'}</td><td>${stamp(e.club)}</td>
+        <td><input type="checkbox" data-p="${stamp(e.id)}" ${e.attendance === 'P' ? 'checked' : ''} aria-label="Present"></td>
+        <td><input type="checkbox" data-a="${stamp(e.id)}" ${e.attendance === 'A' ? 'checked' : ''} aria-label="Absent"></td>
+        <td><input type="checkbox" data-wc="${stamp(e.id)}" ${e.wc ? 'checked' : ''} ${isIn(e) ? '' : 'disabled'} aria-label="Wild card"></td></tr>`).join('')}
       </tbody></table></div>`;
   }).join('');
   updateCount();
 }
 
+let saveTimer = null;
+function saveAttendance() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await post('/api/entries', { tournament: $('dmTournament').value, entries: entriesAll.filter(e => !String(e.id).startsWith('cms')) });
+    } catch (err) { say('Could not save attendance — ' + err.message, 'bad'); }
+  }, 600);
+}
+
 $('dmPlayers').addEventListener('change', e => {
-  const wrap = e.target.closest('.dm__pl');
-  if (!wrap) return;
-  const p = picks[wrap.dataset.label];
-  if (e.target.dataset.in) p[e.target.dataset.in] = e.target.checked ? 'main' : '';
-  if (e.target.dataset.wc) p[e.target.dataset.wc] = e.target.checked ? 'wc' : (p[e.target.dataset.wc] ? 'main' : '');
+  const t = e.target;
+  const id = t.dataset.p || t.dataset.a || t.dataset.wc;
+  const p = entriesAll.find(x => x.id === id);
+  if (!p) return;
+  if (t.dataset.p) p.attendance = t.checked ? 'P' : '';
+  if (t.dataset.a) p.attendance = t.checked ? 'A' : '';
+  if (t.dataset.wc) p.wc = t.checked;
+  if (p.attendance !== 'P') p.wc = false;
   renderPlayers();
+  saveAttendance();
 });
 $('dmCats').addEventListener('change', renderPlayers);
-['dmSize', 'dmWild'].forEach(id => $(id).addEventListener('change', () => {
-  Object.keys(picks).forEach(k => delete picks[k]);
-  renderPlayers();
-}));
+['dmSize', 'dmWild'].forEach(id => $(id).addEventListener('change', renderPlayers));
 
 function say(msg, kind) {
   const el = $('dmState');
@@ -92,23 +110,18 @@ function say(msg, kind) {
 function updateCount() {
   const labels = ticked();
   if (!labels.length) { $('dmCount').textContent = ''; return; }
-  const n = labels.reduce((t, l) => t + Object.values(picks[l] || {}).filter(Boolean).length, 0);
-  $('dmCount').textContent = `${labels.length} categor${labels.length === 1 ? 'y' : 'ies'}, ${n} players chosen — ` +
+  const n = labels.reduce((t, l) => t + entriesAll.filter(e => e.division === l && isIn(e)).length, 0);
+  $('dmCount').textContent = `${labels.length} categor${labels.length === 1 ? 'y' : 'ies'}, ${n} players present — ` +
     ($('dmFormat').value === 'groups' ? `${$('dmGroups').value} groups each` : `${$('dmSize').value}-player draws`);
 }
 
-/* The players for one category, ready for the draw: seeded by rank,
-   wild cards unseeded. */
+/* Present players for one category, seeded by rank, wild cards unseeded. */
 function playersFor(label) {
-  const p = picks[label] || {};
-  const chosen = entriesAll.filter(e => e.division === label && p[e.id]).sort(byRank);
-  const size = Number($('dmSize').value);
-  const seedCount = size >= 64 ? 16 : size >= 32 ? 8 : size >= 16 ? 4 : 2;
-  let seed = 0;
-  return chosen.map(e => {
+  const seeds = seedsFor(label);
+  return entriesAll.filter(e => e.division === label && isIn(e)).sort(byRank).map(e => {
     const out = { name: e.name, club: e.club || '', country: e.country || '' };
-    if (p[e.id] === 'main' && e.rank && seed < seedCount) out.seed = ++seed;
-    if (p[e.id] === 'wc') out.wildcard = true;
+    if (seeds.has(e.id)) out.seed = seeds.get(e.id);
+    if (e.wc) out.wildcard = true;
     return out;
   });
 }
@@ -124,7 +137,7 @@ function generate() {
   const made = {};
   for (const label of labels) {
     const entries = playersFor(label);
-    if (entries.length < 2) { say(`${label}: choose at least two players.`, 'bad'); return; }
+    if (entries.length < 2) { say(`${label}: mark at least two players Present.`, 'bad'); return; }
     let draw;
     try {
       draw = $('dmFormat').value === 'groups'
@@ -346,7 +359,6 @@ function openPublished(i) {
 async function loadEntries() {
   const tid = $('dmTournament').value;
   entriesAll = [];
-  Object.keys(picks).forEach(k => delete picks[k]);
   if (tid) {
     try {
       const res = await fetch('/api/entries?tournament=' + encodeURIComponent(tid), { cache: 'no-store' });

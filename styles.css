@@ -1629,3 +1629,5 @@ a.tt__row strong { text-decoration: none; }
 .ent-admin { border: 1px solid var(--hairline); background: var(--card); padding: 16px; margin: 0 0 22px; }
 .ent-admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .ent-del { background: none; border: 0; color: #D13A3A; font-size: 20px; cursor: pointer; padding: 2px 8px; }
+
+.dm__absent td { opacity: .45; }
