@@ -148,7 +148,7 @@ function generate() {
     draw.made = Date.now(); draw.madeBy = sessionStorage.getItem(NAME_KEY) || '';
     made[label] = {
       current: draw,
-      sched: { drawId: String(draw.made) + '-' + slugOf(label), tournamentId, tournament, event: label, logo,
+      sched: { drawId: String(draw.made), tournamentId, tournament, event: label, logo,
                matches: DrawLogic.matchesFromDraw(draw) }
     };
   }

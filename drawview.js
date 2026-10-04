@@ -159,6 +159,18 @@
     return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${hh % 12 || 12}:${mm} ${hh < 12 ? 'am' : 'pm'}`;
   }
 
+  let adminCache = null;
+  async function isAdmin() {
+    if (adminCache !== null) return adminCache;
+    const pw = sessionStorage.getItem('nr-pass');
+    if (!pw) return (adminCache = false);
+    try {
+      const r = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-password': pw }, body: '{}' });
+      adminCache = r.ok && (await r.json()).name === 'Admin';
+    } catch { adminCache = false; }
+    return adminCache;
+  }
+
   async function openMatch(draw, sched, id) {
     const info = matchInfo(draw, sched, id);
     if (!info.p1 && !info.p2) return;
@@ -167,6 +179,17 @@
     const venue = t ? [t.venue, t.venue_address].filter(Boolean).join(', ') : '';
     const row = (k, v) => `<div class="mm__row"><dt>${k}</dt><dd>${v ? esc(v) : '<span class="mm__tbd">To be announced</span>'}</dd></div>`;
     const status = sm.status === 'done' ? 'Finished' : sm.status === 'live' ? 'Live now' : 'Scheduled';
+    const canEdit = draw.id && sm.id && info.p1 && info.p2 && sm.status !== 'bye' && await isAdmin();
+    const form = canEdit ? `<form class="mm__form" id="mmForm">
+      <h4>Enter result (organiser)</h4>
+      <div class="mm__win">
+        <label><input type="radio" name="w" value="0" ${sm.winner === 0 ? 'checked' : ''} required> ${esc(info.p1)}</label>
+        <label><input type="radio" name="w" value="1" ${sm.winner === 1 ? 'checked' : ''}> ${esc(info.p2)}</label>
+      </div>
+      <input class="pad__name" name="score" placeholder="Score, e.g. 11-9, 9-11, 11-5, 11-7" value="${esc(sm.score || '')}" maxlength="80">
+      <button class="btn btn--solid" type="submit">Save result</button>
+      <span class="pad__publish-state" id="mmState"></span>
+    </form>` : '';
 
     const old = document.getElementById('mmModal'); if (old) old.remove();
     const el = document.createElement('div');
@@ -183,13 +206,28 @@
         ${row('Venue', venue)}
         ${row('Referee', sm.referee)}
         ${row('Status', status)}
-      </dl></div>`;
+      </dl>${form}</div>`;
     const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = e => { if (e.key === 'Escape') close(); };
     el.addEventListener('click', e => { if (e.target === el || e.target.closest('.mm__x')) close(); });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(el);
     el.querySelector('.mm__x').focus();
+    const f = el.querySelector('#mmForm');
+    if (f) f.addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const st = el.querySelector('#mmState');
+      const w = new FormData(f).get('w');
+      if (sm.status === 'done' && !confirm('This match already has a result. Change it?')) return;
+      st.textContent = 'Saving…';
+      try {
+        const r = await fetch('/api/result', { method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-password': sessionStorage.getItem('nr-pass') || '' },
+          body: JSON.stringify({ sid: draw.id, id: sm.id, status: 'done', winner: Number(w), score: new FormData(f).get('score') }) });
+        if (!r.ok) throw new Error(r.status === 404 ? 'Publish the draw and matches first.' : 'Could not save (' + r.status + ').');
+        location.reload();
+      } catch (err) { st.textContent = err.message; }
+    });
   }
 
   /* ---------- Entry point ---------- */

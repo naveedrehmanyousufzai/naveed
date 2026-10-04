@@ -1709,3 +1709,9 @@ a.tt__row strong { text-decoration: none; }
   .ws__grid td { height: 4.3mm; }
   .ws, .ws * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+.mm__form { border-top: 1px solid var(--hairline); margin-top: 8px; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.mm__form h4 { font-size: var(--t-sm); color: var(--gold-ink); }
+.mm__win { display: flex; flex-direction: column; gap: 8px; }
+.mm__win label { display: flex; gap: 10px; align-items: center; font-weight: 600; }
+.mm__win input { width: 20px; height: 20px; accent-color: var(--gold); }
