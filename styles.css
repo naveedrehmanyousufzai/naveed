@@ -1595,3 +1595,6 @@ a.tt__row strong { text-decoration: none; }
   .pad .section-head, #refPad .section-head { flex-wrap: wrap; gap: 8px; }
 }
 .pad__serve-bar[hidden], .pad__timer[hidden], .pad__announce[hidden] { display: none !important; }
+
+/* Match details are hidden; the Details button reveals them for manual matches */
+#refPad:not(.pad--details) .pad__setup { display: none; }
