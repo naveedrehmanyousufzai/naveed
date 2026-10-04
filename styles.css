@@ -613,8 +613,6 @@ img.hero__photo {
   :root { --gutter: 20px; }
   .hero__inner { padding-top: 56px; padding-bottom: 64px; }
   .hero h1 { letter-spacing: -0.03em; }
-  .hero__lede { font-size: var(--t-md); }
-  .hero__role { font-size: var(--t-xs); }
   .record__cell { padding-left: 16px; padding-right: 16px; }
   .record__cell:first-child,
   .record__cell:nth-child(odd) { padding-left: 16px; }
@@ -622,7 +620,6 @@ img.hero__photo {
   .pagehead { padding-top: 40px; }
   .section { padding-top: 64px; padding-bottom: 64px; }
 }
-
 
 /* ---------- 20. Hamburger menu icon ----------
    Three bars that fold into an X when the menu opens. */
@@ -1257,3 +1254,78 @@ select.pad__name { appearance: none; background-image: none; }
 /* The hidden attribute must win over any display rule we set ourselves,
    or elements marked hidden stay on screen. */
 [hidden] { display: none !important; }
+
+/* ============================================================
+   33. Draw maker — match list, logo
+   ============================================================ */
+.dm__logo { height: 64px; width: auto; align-self: flex-start; margin-top: 6px; }
+.dm__round { font-family: 'Archivo', sans-serif; font-size: var(--t-md); margin: 26px 0 8px; }
+.dm__table { width: 100%; }
+.dm__table td { vertical-align: middle; }
+.dm__table .pad__name { padding: 8px 10px; min-width: 0; }
+.dm__court { width: 70px; }
+.dm__vs { color: var(--ash); margin: 0 4px; }
+.dm__tbd { color: var(--ash); font-style: italic; }
+.dm__bye td { opacity: .5; }
+.dm__status { color: var(--gold-ink); font-size: var(--t-xs); white-space: nowrap; }
+#dmMatches { overflow-x: auto; }
+@media (max-width: 700px) { .dm__table { min-width: 640px; } }
+
+/* ============================================================
+   34. Serve side (L / R) — referee pad, big screen, live cards
+   ============================================================ */
+.pad__serve-bar {
+  margin: 18px 0 4px; padding: 14px; border: 1px solid var(--hairline);
+  background: var(--card); display: flex; flex-direction: column; gap: 10px;
+}
+.pad__serve-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pad__serve-q { font-size: var(--t-sm); color: var(--ash); min-width: 120px; }
+.pad__serve-q b { color: var(--text); }
+.pad__chip {
+  flex: 1; min-width: 110px; padding: 12px 14px; border: 1px solid var(--hairline);
+  background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+}
+.pad__chip:hover:not(:disabled) { border-color: var(--gold); }
+.pad__chip--on { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+.pad__chip:disabled { cursor: not-allowed; opacity: .5; }
+.pad__chip--on:disabled { opacity: 1; }
+.pad__chip--side { font-family: 'Archivo', sans-serif; font-size: var(--t-lg); font-weight: 900; }
+.pad__serve-need { color: var(--gold); font-size: var(--t-sm); font-weight: 600; }
+
+.pad__mine { margin-bottom: 26px; }
+.mine { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.mine__card {
+  border: 1px solid var(--hairline); padding: 12px 14px; display: flex;
+  align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between;
+}
+.mine__card--on { border-color: var(--gold); }
+.mine__when { font-size: var(--t-xs); color: var(--gold-ink); letter-spacing: .04em; }
+.mine__who { font-weight: 600; }
+.mine__meta { font-size: var(--t-xs); color: var(--ash); }
+.mine__card .btn { padding: 9px 16px; font-size: var(--t-xs); }
+
+.board__sideflag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 5.2vh; height: 5.2vh; margin-left: 1vw; border-radius: 50%;
+  background: var(--gold); color: var(--ink); font-family: 'Archivo', sans-serif;
+  font-weight: 900; font-size: 3.4vh; vertical-align: middle; letter-spacing: 0;
+}
+.board__sideflag--wait { background: transparent; color: var(--gold); border: .3vh solid var(--gold); font-size: 2.4vh; }
+.board__logo--event { height: 9vh; max-width: 18vw; object-fit: contain; }
+.lm__side-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+  background: var(--gold); color: var(--ink); font-size: var(--t-xs); font-weight: 800;
+}
+
+.sched { margin-top: 40px; }
+.sched__row {
+  display: grid; grid-template-columns: 120px 1fr 90px; gap: 12px; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--hairline);
+}
+.sched__time { font-size: var(--t-xs); color: var(--gold-ink); }
+.sched__who { font-weight: 600; }
+.sched__meta { font-size: var(--t-xs); color: var(--ash); display: block; font-weight: 400; }
+.sched__res { text-align: right; font-size: var(--t-xs); color: var(--ash); font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .sched__row { grid-template-columns: 1fr; gap: 2px; } .sched__res { text-align: left; } }
+.pt__sd { display:block; font-size: 9px; opacity:.7; line-height:1; font-weight:700; }
+.board__serve { height: 5.8vh; display: flex; align-items: center; justify-content: center; }

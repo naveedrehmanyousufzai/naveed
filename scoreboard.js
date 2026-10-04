@@ -39,6 +39,27 @@ function show(on) {
   haveMatch = on;
 }
 
+/* The tournament logo comes with the schedule, so it is fetched once in a
+   while rather than sent with every point. */
+let sched = null;
+async function loadSchedule() {
+  try {
+    const res = await fetch('/api/schedule', { cache: 'no-store' });
+    sched = res.ok ? await res.json() : null;
+  } catch { /* keep the last one */ }
+}
+
+const DEFAULT_LOGO = 'images/nr-logo-light.png';
+function setLogo(d) {
+  const img = $('bLogo');
+  const same = sched && sched.logo && (
+    (d.match_id && (sched.matches || []).some(m => m.id === d.match_id)) ||
+    String(sched.tournament || '').trim().toLowerCase() === String(d.tournament || '').trim().toLowerCase());
+  const want = same ? sched.logo : DEFAULT_LOGO;
+  if (img.getAttribute('src') !== want) img.src = want;
+  img.classList.toggle('board__logo--event', !!same);
+}
+
 function paint(d) {
   const fresh = d && d.updated && (Date.now() - d.updated < STALE_MS);
   if (!fresh) { show(false); return; }
@@ -54,6 +75,7 @@ function paint(d) {
   const won = d.games_won || [0, 0];
 
   txt('bTournament', d.tournament || '');
+  setLogo(d);
   txt('bRound', [d.court ? 'Court ' + d.court : '', d.round || '']
     .filter(Boolean).join(' \u00b7 '));
 
@@ -62,8 +84,13 @@ function paint(d) {
     txt('bDept' + i, p[i]?.dept || '');
     txt('bPts' + i, score[i]);
     txt('bG' + i, won[i]);
-    $('bServe' + i).style.visibility =
-      (d.server === i && !d.done) ? 'visible' : 'hidden';
+    const serving = d.server === i && !d.done;
+    $('bServe' + i).style.visibility = serving ? 'visible' : 'hidden';
+    $('bServe' + i).innerHTML = serving
+      ? '● serving' + (d.side
+          ? `<span class="board__sideflag" aria-label="${d.side === 'L' ? 'left' : 'right'} box">${d.side}</span>`
+          : '<span class="board__sideflag board__sideflag--wait">…</span>')
+      : '';
     $('bSide' + i).classList.toggle('board__player--serving', d.server === i && !d.done);
   }
 
@@ -145,6 +172,7 @@ async function poll() {
   }
 }
 
-poll();
+loadSchedule().then(poll);
+setInterval(loadSchedule, 60000);
 setInterval(poll, POLL_MS);
 setInterval(tickClock, 1000);

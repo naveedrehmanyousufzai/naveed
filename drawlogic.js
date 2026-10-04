@@ -250,11 +250,63 @@ function standings(group) {
     y.won - x.won || (y.gf - y.ga) - (x.gf - x.ga) || x.name.localeCompare(y.name));
 }
 
+
+/* ============================================================
+   MATCHES — turn a draw into a list of matches to schedule.
+   Knockout: every match of every round (later rounds start with
+   unknown players and fill in as winners come through). Byes are
+   settled straight away. Groups: every fixture in every group.
+   The organiser then adds court, time and referee to each.
+   ============================================================ */
+function matchesFromDraw(draw) {
+  const P = p => p ? { name: p.name, club: p.club || '' } : null;
+  const blank = (id, round, no) => ({
+    id, round, no, p1: null, p2: null, court: '', time: '', referee: '',
+    status: 'scheduled', winner: '', score: ''
+  });
+  const out = [];
+
+  if (draw.format === 'groups') {
+    (draw.groups || []).forEach((g, gi) => {
+      g.matches.forEach((f, n) => {
+        const m = blank(`g${gi + 1}m${n + 1}`, g.name, n + 1);
+        const find = name => g.players.find(p => p.name === name);
+        m.p1 = P(find(f.p1)); m.p2 = P(find(f.p2));
+        m.ref = { g: gi, n };
+        out.push(m);
+      });
+    });
+    return out;
+  }
+
+  (draw.rounds || []).forEach((r, ri) => {
+    r.matches.forEach((_, mi) => {
+      const m = blank(`r${ri + 1}m${mi + 1}`, r.name, mi + 1);
+      if (ri === 0) {
+        m.p1 = P(draw.slots[mi * 2].player);
+        m.p2 = P(draw.slots[mi * 2 + 1].player);
+      }
+      m.ref = { ri, mi };
+      out.push(m);
+    });
+  });
+
+  /* A bye is a win without playing: move that player on. */
+  for (const m of out.filter(x => x.ref.ri === 0)) {
+    if ((m.p1 && m.p2) || (!m.p1 && !m.p2)) continue;
+    m.status = 'bye';
+    m.winner = m.p1 ? 0 : 1;
+    const next = out.find(x => x.ref.ri === 1 && x.ref.mi === Math.floor(m.ref.mi / 2));
+    if (next) next[m.ref.mi % 2 === 0 ? 'p1' : 'p2'] = m.p1 || m.p2;
+  }
+  return out;
+}
+
 /* Available to the browser and to node, so the same code is tested
    and shipped. */
 const DrawLogic = {
   shuffle, drawSizeFor, seedOrder, seedBlocks,
-  buildKnockout, buildGroups, roundRobinFixtures, standings
+  buildKnockout, buildGroups, roundRobinFixtures, standings, matchesFromDraw
 };
 if (typeof window !== 'undefined') window.DrawLogic = DrawLogic;
 if (typeof module !== 'undefined' && module.exports) module.exports = DrawLogic;

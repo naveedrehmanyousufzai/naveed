@@ -20,7 +20,8 @@ function card(m) {
   const side = i => `
     <div class="lm__side${m.server === i && !m.done ? ' lm__side--serving' : ''}">
       <div class="lm__who">
-        <span class="lm__name">${esc(p[i]?.name || '')}</span>
+        <span class="lm__name">${esc(p[i]?.name || '')}${m.server === i && !m.done && m.side
+          ? `<span class="lm__side-tag">serving ${esc(m.side)}</span>` : ''}</span>
         ${p[i]?.dept ? `<span class="lm__dept">${esc(p[i].dept)}</span>` : ''}
       </div>
       <span class="lm__pts">${esc(score[i])}</span>
@@ -86,3 +87,41 @@ async function poll() {
 
 poll();
 setInterval(poll, POLL_MS);
+
+
+/* ---------- Today's matches, from the schedule ---------- */
+const fmt = t => {
+  if (!t) return '';
+  const d = new Date(t);
+  return isNaN(d) ? t : d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
+async function loadSchedule() {
+  const root = document.getElementById('sched');
+  if (!root) return;
+  try {
+    const res = await fetch('/api/schedule', { cache: 'no-store' });
+    const s = res.ok ? await res.json() : null;
+    if (!s || !s.matches) { root.innerHTML = ''; return; }
+
+    const rows = s.matches
+      .filter(m => m.status !== 'bye' && (m.p1 || m.p2) && m.p1 && m.p2)
+      .sort((a, b) => String(a.time || '~').localeCompare(String(b.time || '~')));
+    if (!rows.length) { root.innerHTML = ''; return; }
+
+    root.innerHTML = `
+      <hr class="rule">
+      <div class="section-head"><h2>Schedule</h2></div>
+      <p class="pad__intro">${esc(s.tournament || '')}${s.event ? ' · ' + esc(s.event) : ''}</p>
+      ${rows.map(m => `
+        <div class="sched__row">
+          <span class="sched__time">${esc(fmt(m.time) || 'Time to be set')}${m.court ? '<br>Court ' + esc(m.court) : ''}</span>
+          <span class="sched__who">${esc(m.p1.name)} v ${esc(m.p2.name)}
+            <span class="sched__meta">${esc(m.round)}${m.referee ? ' · Referee ' + esc(m.referee) : ''}</span></span>
+          <span class="sched__res">${m.status === 'done' ? esc(m.score)
+            : m.status === 'live' ? '<span class="tag tag--live">Live</span>' : ''}</span>
+        </div>`).join('')}`;
+  } catch { /* leave it as it was */ }
+}
+loadSchedule();
+setInterval(loadSchedule, 30000);

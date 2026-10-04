@@ -62,7 +62,7 @@ function gameGrid(m, gameNo) {
   if (!rallies.length) return '';
 
   const row = i => rallies.map(r =>
-    `<td class="${r.w === i ? 'pt' : 'pt pt--blank'}">${r.w === i ? (i === 0 ? r.a : r.b) : ''}</td>`
+    `<td class="${r.w === i ? 'pt' : 'pt pt--blank'}">${r.w === i ? (i === 0 ? r.a : r.b) : ''}${r.sv === i && r.sd ? `<small class="pt__sd">${esc(r.sd)}</small>` : ''}</td>`
   ).join('');
 
   const g = (m.games || [])[gameNo - 1] || ['', ''];

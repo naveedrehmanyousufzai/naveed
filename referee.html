@@ -65,6 +65,13 @@
   the rally. While you are signed in the score publishes automatically.</p>
 
   <div class="pad">
+    <!-- Matches the organiser assigned to this referee -->
+    <div class="pad__mine" id="padMine">
+      <h3 class="pad__history-title">Your matches</h3>
+      <div class="mine" id="padMineList"><p class="pad__empty">Loading…</p></div>
+      <button class="btn btn--ghost" id="padMineRefresh" style="padding:9px 16px;font-size:13px">Refresh list</button>
+    </div>
+
     <!-- Match details: these appear on the big-screen scoreboard -->
     <div class="pad__setup">
       <h3 class="pad__history-title">Match details</h3>
@@ -115,6 +122,8 @@
         <span class="pad__label" id="padLabel1">Player 2</span>
       </button>
     </div>
+
+    <div class="pad__serve-bar" id="padServeBar"></div>
 
     <p class="pad__status" id="padStatus">Game 1 · first to 11, win by 2</p>
 

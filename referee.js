@@ -33,6 +33,9 @@ function padFresh() {
     score: [0, 0],         // points in the current game
     games: [],             // finished games, e.g. [[11,7],[9,11]]
     server: null,          // 0, 1, or null before the first rally
+    side: null,            // 'L' or 'R': the box the server serves from
+    sideFree: true,        // true while the server may still pick the side
+    matchId: null,         // which scheduled match this is, if any
     done: false,
     rallies: [],           // every point, for the printed scoresheet
     started: now,          // match start, for the match clock
@@ -84,28 +87,65 @@ function padGameWinner() {
   return null;
 }
 
+/* SERVING RULES
+   - The server serves from L or R. If the server wins the rally, the
+     next serve is from the other box.
+   - If the receiver wins, they become the server and may choose
+     either box, so the side is left open until the referee picks it.
+   - The winner of a game serves first in the next, and chooses a box. */
+function padCanScore() {
+  return !pad.done && pad.server !== null && pad.side !== null;
+}
+
 function padPoint(i) {
-  if (pad.done) return;
+  if (!padCanScore()) return;
   pad.history.push(padSnapshot());
+  const before = { sv: pad.server, sd: pad.side };
   pad.score[i]++;
-  pad.server = i;                       // winner of the rally serves next
   pad.rallies.push({
     g: pad.games.length + 1,            // which game
     w: i,                               // who won the rally
-    a: pad.score[0], b: pad.score[1]    // running score after it
+    a: pad.score[0], b: pad.score[1],   // running score after it
+    sv: before.sv, sd: before.sd        // who served, from which side
   });
+
+  if (i === before.sv) {                // server won: other box next
+    pad.side = before.sd === 'L' ? 'R' : 'L';
+    pad.sideFree = false;
+  } else {                              // receiver won: new server, free choice
+    pad.server = i;
+    pad.side = null;
+    pad.sideFree = true;
+  }
 
   const w = padGameWinner();
   if (w !== null) {
     pad.games.push([pad.score[0], pad.score[1]]);
     pad.score = [0, 0];
     pad.server = w;                     // game winner serves first next game
+    pad.side = null;
+    pad.sideFree = true;
     pad.gameStarted = Date.now();       // game clock restarts
     if (padGamesWon()[w] >= PAD_GAMES_TO_WIN) {
       pad.done = true;
       padArchive();                     // keep it for the printed scoresheet
+      padReportResult(w);
     }
   }
+  padRender();
+  padPublishSoon();
+}
+
+function padPickServer(i) {
+  if (pad.done || pad.score[0] || pad.score[1] || !pad.sideFree) return;
+  pad.server = i;
+  padRender();
+  padPublishSoon();
+}
+
+function padPickSide(side) {
+  if (pad.done || pad.server === null || !pad.sideFree) return;
+  pad.side = side;
   padRender();
   padPublishSoon();
 }
@@ -129,6 +169,7 @@ function padArchive() {
     const all = JSON.parse(localStorage.getItem(PAD_STORE) || '[]');
     all.unshift({
       id: 'm' + Date.now(),
+      match_id: pad.matchId,
       referee: sessionStorage.getItem(NAME_KEY) || '',
       tournament: m.tournament,
       round: m.round,
@@ -159,6 +200,8 @@ function padPayload() {
     games: pad.games,
     games_won: padGamesWon(),
     server: pad.server,
+    side: pad.side,
+    match_id: pad.matchId,
     done: pad.done,
     started: pad.started,
     game_started: pad.gameStarted,
@@ -167,9 +210,22 @@ function padPayload() {
   };
 }
 
+/* Nothing goes on the big screen until a match is chosen or the referee
+   starts scoring — signing in alone must not put "Player 1 v Player 2" up. */
+let padTouched = false;
+function padActive() {
+  return !!pad.matchId || padTouched || pad.server !== null || pad.games.length > 0 ||
+         pad.score[0] > 0 || pad.score[1] > 0;
+}
+
 async function padPublish() {
   if (!padLive) return;
   const state = document.getElementById('padLiveState');
+  if (!padActive()) {
+    state.textContent = 'Ready. Nothing is shown on the site until you pick a match or start scoring.';
+    state.className = 'pad__publish-state';
+    return;
+  }
   try {
     const res = await fetch('/api/live?court=' + encodeURIComponent(padCourt()), {
       method: 'POST',
@@ -214,6 +270,28 @@ function padSetLive(on) {
   }
 }
 
+function padRenderServeBar(names) {
+  const bar = document.getElementById('padServeBar');
+  if (!bar) return;
+  if (pad.done) { bar.hidden = true; return; }
+  bar.hidden = false;
+
+  /* The server can be changed only before the first rally of a game. */
+  const canPickServer = !pad.score[0] && !pad.score[1] && pad.sideFree;
+  const chips = [0, 1].map(i => `
+    <button class="pad__chip${pad.server === i ? ' pad__chip--on' : ''}" data-srv="${i}"
+      ${canPickServer ? '' : 'disabled'}>${esc(names[i])}</button>`).join('');
+
+  const sides = ['L', 'R'].map(sd => `
+    <button class="pad__chip pad__chip--side${pad.side === sd ? ' pad__chip--on' : ''}" data-sd="${sd}"
+      ${pad.sideFree && pad.server !== null ? '' : 'disabled'}
+      aria-label="Serve from ${sd === 'L' ? 'left' : 'right'}">${sd}</button>`).join('');
+
+  bar.innerHTML = `
+    <div class="pad__serve-row"><span class="pad__serve-q">Server</span>${chips}</div>
+    <div class="pad__serve-row"><span class="pad__serve-q">Serving from</span>${sides}</div>`;
+}
+
 function padRender() {
   const names = padNames();
   const won = padGamesWon();
@@ -221,10 +299,12 @@ function padRender() {
   for (let i = 0; i < 2; i++) {
     document.getElementById('padScore' + i).textContent = pad.score[i];
     document.getElementById('padLabel' + i).textContent = names[i];
-    document.getElementById('padServe' + i).style.visibility =
-      (pad.server === i && !pad.done) ? 'visible' : 'hidden';
-    document.getElementById('padSide' + i).disabled = pad.done;
+    const sv = document.getElementById('padServe' + i);
+    sv.style.visibility = (pad.server === i && !pad.done) ? 'visible' : 'hidden';
+    sv.textContent = pad.side ? 'serving from ' + pad.side : 'serving — pick a side';
+    document.getElementById('padSide' + i).disabled = !padCanScore();
   }
+  padRenderServeBar(names);
 
   document.getElementById('padGames').innerHTML =
     `<span class="pad__gamecount">${won[0]}</span>
@@ -232,7 +312,12 @@ function padRender() {
      <span class="pad__gamecount">${won[1]}</span>`;
 
   const st = document.getElementById('padStatus');
-  if (pad.done) {
+  if (!pad.done && !padCanScore()) {
+    st.textContent = pad.server === null
+      ? 'Choose who serves first, then the side.'
+      : `${names[pad.server]} — choose L or R to serve from.`;
+    st.className = 'pad__status pad__serve-need';
+  } else if (pad.done) {
     const w = won[0] > won[1] ? 0 : 1;
     st.textContent = `${names[w]} wins the match ${won[w]}–${won[1 - w]}`;
     st.className = 'pad__status pad__status--done';
@@ -265,11 +350,24 @@ function padInit() {
   });
   document.getElementById('padUndo').addEventListener('click', padUndo);
 
+  document.getElementById('padServeBar').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    if (b.dataset.srv !== undefined) padPickServer(Number(b.dataset.srv));
+    if (b.dataset.sd) padPickSide(b.dataset.sd);
+  });
+  document.getElementById('padMineRefresh').addEventListener('click', loadMine);
+  document.getElementById('padMineList').addEventListener('click', e => {
+    const b = e.target.closest('[data-start]');
+    if (b) startScheduled(b.dataset.start);
+  });
+
   document.getElementById('padReset').addEventListener('click', () => {
     if (pad.games.length || pad.score[0] || pad.score[1]) {
       if (!confirm('Start a new match? The current score will be cleared.')) return;
     }
     pad = padFresh();
+    padTouched = false;
     padRender();
     padPublishSoon();
   });
@@ -290,12 +388,93 @@ function padInit() {
   ['padName0', 'padName1', 'padDept0', 'padDept1', 'padTournament', 'padRound', 'padCourt']
     .forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => { padRender(); padPublishSoon(); });
+      if (el) el.addEventListener('input', () => { padTouched = true; padRender(); padPublishSoon(); });
     });
 
   padRender();
 }
 
+
+/* ---------- Matches assigned to this referee ---------- */
+let schedule = null;
+
+const fmtTime = t => {
+  if (!t) return 'time not set';
+  const d = new Date(t);
+  return isNaN(d) ? t : d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
+async function loadMine() {
+  const box = document.getElementById('padMineList');
+  try {
+    const res = await fetch('/api/schedule', { cache: 'no-store' });
+    schedule = res.ok ? await res.json() : null;
+  } catch { schedule = null; }
+
+  if (!schedule || !schedule.matches) {
+    box.innerHTML = '<p class="pad__empty">No schedule is published yet. You can still score a match by hand below.</p>';
+    return;
+  }
+
+  const me = sessionStorage.getItem(NAME_KEY) || '';
+  const mine = schedule.matches
+    .filter(m => m.p1 && m.p2 && m.status !== 'done' && m.status !== 'bye')
+    .filter(m => me === 'Admin' || m.referee === me)
+    .sort((a, b) => String(a.time || '~').localeCompare(String(b.time || '~')));
+
+  box.innerHTML = mine.length ? mine.map(m => `
+    <div class="mine__card${pad && pad.matchId === m.id ? ' mine__card--on' : ''}">
+      <div>
+        <div class="mine__when">${esc(fmtTime(m.time))}${m.court ? ' · Court ' + esc(m.court) : ''}</div>
+        <div class="mine__who">${esc(m.p1.name)} <span class="mine__meta">v</span> ${esc(m.p2.name)}</div>
+        <div class="mine__meta">${esc(schedule.tournament || '')} · ${esc(m.round)}${me === 'Admin' && m.referee ? ' · ' + esc(m.referee) : ''}</div>
+      </div>
+      <button class="btn btn--solid" data-start="${esc(m.id)}">Score this match</button>
+    </div>`).join('')
+    : '<p class="pad__empty">Nothing is assigned to you right now. Matches appear here when both players are known.</p>';
+}
+
+function startScheduled(id) {
+  const m = schedule && schedule.matches.find(x => x.id === id);
+  if (!m) return;
+  if (pad.matchId !== id && (pad.games.length || pad.score[0] || pad.score[1]) && !pad.done) {
+    if (!confirm('Switch to this match? The score on the pad will be cleared.')) return;
+  }
+  const set = (f, v) => { const el = document.getElementById(f); if (el) el.value = v || ''; };
+  set('padCourt', m.court || '1');
+  set('padTournament', schedule.tournament);
+  set('padRound', [schedule.event, m.round].filter(Boolean).join(' · '));
+  set('padName0', m.p1.name); set('padDept0', m.p1.club);
+  set('padName1', m.p2.name); set('padDept1', m.p2.club);
+
+  pad = padFresh();
+  pad.matchId = m.id;
+  padTouched = true;
+  padRender();
+  padPublish();
+  padReportLive();
+  loadMine();
+  window.scrollTo({ top: document.getElementById('padScore0').getBoundingClientRect().top + scrollY - 120, behavior: 'smooth' });
+}
+
+/* Tell the server this match is live / finished, so the schedule and the
+   draw update and the winner moves on to the next round. */
+async function padReport(body) {
+  if (!pad.matchId || !sessionStorage.getItem(PASS_KEY)) return;
+  try {
+    await fetch('/api/result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': sessionStorage.getItem(PASS_KEY) },
+      body: JSON.stringify({ id: pad.matchId, ...body })
+    });
+  } catch (err) { console.warn('Could not report the result:', err); }
+}
+const padReportLive = () => padReport({ status: 'live' });
+async function padReportResult(winner) {
+  const score = pad.games.map(g => g[0] + '-' + g[1]).join(', ');
+  await padReport({ status: 'done', winner, score });
+  loadMine();
+}
 
 /* ---------- Login gate ---------- */
 const PASS_KEY = 'nr-pass';
@@ -313,6 +492,7 @@ function showPad() {
   padInit();
   padSetLive(true);
   padPublish();
+  loadMine();
 }
 
 async function tryLogin(pw) {

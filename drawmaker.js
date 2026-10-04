@@ -10,6 +10,9 @@ const NAME_KEY = 'nr-referee';
 
 const $ = id => document.getElementById(id);
 let current = null;          // the draw on screen
+let sched = null;            // the matches (court, time, referee) on screen
+let referees = [];           // names the organiser can assign
+let logo = '';               // tournament logo as a small data URL
 
 /* ---------- Reading the entry list ----------
    One player per line: "Name, Club, Seed". Club and seed optional,
@@ -89,7 +92,91 @@ function generate() {
 
   DrawView.render($('dmPreview'), current);
   ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = false; });
-  say('Draw made. Check it over, then publish.', 'good');
+
+  sched = {
+    drawId: String(current.made),
+    tournament, event, logo,
+    matches: DrawLogic.matchesFromDraw(current)
+  };
+  renderMatches();
+  say('Draw made. Set courts, times and referees below, then publish.', 'good');
+}
+
+/* ---------- The match list ---------- */
+const stamp = t => String(t ?? '').replace(/[&<>"]/g, c => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const who = p => p ? stamp(p.name) : '<span class="dm__tbd">to be decided</span>';
+
+function renderMatches() {
+  const box = $('dmSchedule');
+  if (!sched || !sched.matches.length) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const opts = sel => ['<option value="">— unassigned —</option>']
+    .concat(referees.map(n =>
+      `<option value="${stamp(n)}"${n === sel ? ' selected' : ''}>${stamp(n)}</option>`))
+    .concat(sel && !referees.includes(sel)
+      ? [`<option value="${stamp(sel)}" selected>${stamp(sel)}</option>`] : [])
+    .join('');
+
+  let round = null, html = '';
+  sched.matches.forEach((m, i) => {
+    if (m.round !== round) {
+      if (round !== null) html += '</tbody></table>';
+      round = m.round;
+      html += `<h4 class="dm__round">${stamp(round)}</h4>
+        <table class="table dm__table"><thead><tr>
+          <th>#</th><th>Match</th><th>Court</th><th>Time</th><th>Referee</th><th></th>
+        </tr></thead><tbody>`;
+    }
+    const bye = m.status === 'bye';
+    html += `<tr data-i="${i}"${bye ? ' class="dm__bye"' : ''}>
+      <td>${m.no}</td>
+      <td>${who(m.p1)} <span class="dm__vs">v</span> ${bye ? 'bye' : who(m.p2)}</td>
+      <td><input class="pad__name dm__court" data-f="court" value="${stamp(m.court)}" ${bye ? 'disabled' : ''}></td>
+      <td><input class="pad__name" type="datetime-local" data-f="time" value="${stamp(m.time)}" ${bye ? 'disabled' : ''}></td>
+      <td><select class="pad__name" data-f="referee" ${bye ? 'disabled' : ''}>${opts(m.referee)}</select></td>
+      <td class="dm__status">${m.status === 'done' ? stamp(m.score || 'done') : m.status === 'live' ? 'live' : ''}</td>
+    </tr>`;
+  });
+  box.querySelector('#dmMatches').innerHTML = html + '</tbody></table>';
+}
+
+/* Keep what the organiser types in the match list. */
+$('dmMatches').addEventListener('input', e => {
+  const row = e.target.closest('tr[data-i]');
+  if (!row || !sched) return;
+  sched.matches[Number(row.dataset.i)][e.target.dataset.f] = e.target.value;
+});
+
+function schedSay(msg, kind) {
+  const el = $('dmSchedState');
+  el.textContent = msg || '';
+  el.className = 'pad__publish-state' + (kind ? ' pad__publish-state--' + kind : '');
+}
+
+async function post(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-password': sessionStorage.getItem(PASS_KEY) || ''
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401 || res.status === 403) throw new Error('Your sign-in has expired. Reload and sign in again.');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function saveSchedule() {
+  sched.tournament = $('dmTournament').value.trim();
+  sched.event = $('dmEvent').value.trim();
+  sched.logo = logo;
+  const saved = await post('/api/schedule', sched);
+  sched = saved;                 // keeps any result a referee just reported
+  renderMatches();
 }
 
 /* ---------- Publishing ---------- */
@@ -97,20 +184,57 @@ async function publish() {
   if (!current) return;
   say('Publishing…');
   try {
-    const res = await fetch('/api/draw', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': sessionStorage.getItem(PASS_KEY) || ''
-      },
-      body: JSON.stringify(current)
-    });
-    if (res.status === 401) { say('Your sign-in has expired. Reload and sign in again.', 'bad'); return; }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    say('Published. It is now on the public draw page.', 'good');
+    await post('/api/draw', current);
+    await saveSchedule();
+    say('Published. The draw and the matches are live on the site.', 'good');
+    schedSay('Saved.', 'good');
   } catch (err) {
-    say('Could not publish — ' + err.message + '. The draw is still on screen; try again.', 'bad');
+    say('Could not publish — ' + err.message + ' The draw is still on screen; try again.', 'bad');
   }
+}
+
+$('dmSaveSched').addEventListener('click', async () => {
+  schedSay('Saving…');
+  try { await saveSchedule(); schedSay('Saved. Referees will see their matches.', 'good'); }
+  catch (err) { schedSay(err.message, 'bad'); }
+});
+
+/* ---------- Logo: shrunk in the browser so it stays small ---------- */
+$('dmLogo').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const max = 360;
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k);
+    c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    logo = c.toDataURL('image/png');
+    $('dmLogoPreview').src = logo;
+    $('dmLogoPreview').hidden = false;
+    if (sched) sched.logo = logo;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+});
+
+/* Pick up what is already published, so assigning later rounds does not
+   mean making the draw again. */
+async function loadPublished() {
+  try {
+    const res = await fetch('/api/schedule', { cache: 'no-store' });
+    const data = res.ok ? await res.json() : null;
+    if (data && data.matches && !sched) {
+      sched = data;
+      logo = data.logo || '';
+      $('dmTournament').value = data.tournament || '';
+      $('dmEvent').value = data.event || '';
+      if (logo) { $('dmLogoPreview').src = logo; $('dmLogoPreview').hidden = false; }
+      renderMatches();
+    }
+  } catch { /* nothing published yet */ }
 }
 
 /* ---------- Login ---------- */
@@ -120,6 +244,7 @@ function openMaker() {
   const name = sessionStorage.getItem(NAME_KEY);
   if (name) { $('dmWho').hidden = false; $('dmWhoName').textContent = name; }
   updateCount();
+  loadPublished();
 }
 
 async function signIn(pw) {
@@ -139,6 +264,12 @@ async function signIn(pw) {
     }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const body = await res.json().catch(() => ({}));
+    if (body.name !== 'Admin') {
+      msg.textContent = 'This page needs the organiser (admin) password, not a referee password.';
+      msg.className = 'ref-login__msg ref-login__msg--bad';
+      return;
+    }
+    referees = body.referees || [];
     sessionStorage.setItem(PASS_KEY, pw);
     sessionStorage.setItem(NAME_KEY, body.name || 'Organiser');
     openMaker();
@@ -175,4 +306,5 @@ $('dmRedraw').addEventListener('click', generate);   // a fresh random draw
 $('dmPublish').addEventListener('click', publish);
 $('dmPrint').addEventListener('click', () => window.print());
 
-if (sessionStorage.getItem(PASS_KEY)) openMaker();
+/* Already signed in this session: check again, which also fetches the referee names. */
+if (sessionStorage.getItem(PASS_KEY)) signIn(sessionStorage.getItem(PASS_KEY));

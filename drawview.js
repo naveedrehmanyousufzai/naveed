@@ -36,6 +36,7 @@
               <div class="match__no">${i + 1}</div>
               ${line(p[0])}
               ${line(p[1])}
+              ${draw.rounds?.[0]?.matches?.[i]?.score ? `<p class="match__score">${esc(draw.rounds[0].matches[i].score)}</p>` : ''}
             </div>`).join('')}
         </div>
       </div>`;
