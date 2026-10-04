@@ -40,7 +40,7 @@ const isIn = e => e.attendance === 'P';
 
 function seedsFor(label) {
   const size = Number($('dmSize').value);
-  const seedCount = size >= 64 ? 16 : size >= 32 ? 8 : size >= 16 ? 4 : 2;
+  const seedCount = size / 2;            // half the draw is seeded: 8 of 16, 16 of 32, 32 of 64
   const m = new Map();
   let n = 0;
   entriesAll.filter(e => e.division === label && isIn(e) && !e.wc && e.rank).sort(byRank)

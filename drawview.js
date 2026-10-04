@@ -50,7 +50,7 @@
         <h3 class="bracket__round">${esc(first)}</h3>
         <div class="bracket__matches">
           ${pairs.map((p, i) => `
-            <div class="match">
+            <div class="match" data-mid="r1m${i + 1}">
               <div class="match__no">${i + 1}</div>
               ${line(p[0])}
               ${line(p[1])}
@@ -66,7 +66,7 @@
         <h3 class="bracket__round">${esc(r.name)}</h3>
         <div class="bracket__matches">
           ${(r.matches || []).map((m, mi) => `
-            <div class="match">
+            <div class="match" data-mid="r${ri + 2}m${mi + 1}">
               ${m.p1 ? `<div class="slot"><span class="slot__name">${esc(m.p1)}</span></div>`
                      : `<div class="slot slot--empty">To be decided</div>`}
               ${m.p2 ? `<div class="slot"><span class="slot__name">${esc(m.p2)}</span></div>`
@@ -113,13 +113,83 @@
 
         <ul class="group__fixtures">
           ${(g.matches || []).map((m, n) => `
-            <li>
+            <li data-mid="g${gi + 1}m${n + 1}">
               <span class="group__fx">${esc(m.p1)} v ${esc(m.p2)}${whenHTML(sched, 'g' + (gi + 1) + 'm' + (n + 1))}</span>
               <span class="group__sc">${m.score ? esc(m.score) : '—'}</span>
             </li>`).join('')}
         </ul>
       </section>`;
     }).join('') + `</div>`;
+  }
+
+  /* ---------- Click a match: details popup ---------- */
+  let tournamentsCache = null;
+  async function tournamentOf(id) {
+    if (!tournamentsCache) {
+      try { tournamentsCache = (await (await fetch('content/tournaments.json')).json()).tournaments || []; }
+      catch { tournamentsCache = []; }
+    }
+    return tournamentsCache.find(t => t.id === id) || null;
+  }
+
+  function matchInfo(draw, sched, id) {
+    const sm = sched && (sched.matches || []).find(x => x.id === id);
+    const name = p => (p && typeof p === 'object') ? p.name : (p || '');
+    let round = '', p1 = '', p2 = '', no = '';
+    const km = /^r(\d+)m(\d+)$/.exec(id), gm = /^g(\d+)m(\d+)$/.exec(id);
+    if (km) {
+      const ri = Number(km[1]) - 1, mi = Number(km[2]) - 1;
+      round = draw.rounds?.[ri]?.name || 'Round ' + km[1];
+      no = km[2];
+      if (ri === 0) { p1 = name(draw.slots?.[mi * 2]?.player); p2 = name(draw.slots?.[mi * 2 + 1]?.player); }
+      else { p1 = name(draw.rounds?.[ri]?.matches?.[mi]?.p1); p2 = name(draw.rounds?.[ri]?.matches?.[mi]?.p2); }
+    } else if (gm) {
+      const g = draw.groups?.[Number(gm[1]) - 1];
+      const f = g?.matches?.[Number(gm[2]) - 1];
+      round = g?.name || 'Group'; no = gm[2]; p1 = f?.p1 || ''; p2 = f?.p2 || '';
+    }
+    if (sm) { p1 = name(sm.p1) || p1; p2 = name(sm.p2) || p2; round = sm.round || round; no = sm.no || no; }
+    return { sm, round, no, p1, p2 };
+  }
+
+  function fmtWhen(t) {
+    const d = t ? new Date(t) : null;
+    if (!d || isNaN(d)) return '';
+    const hh = d.getHours(), mm = String(d.getMinutes()).padStart(2, '0');
+    return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${hh % 12 || 12}:${mm} ${hh < 12 ? 'am' : 'pm'}`;
+  }
+
+  async function openMatch(draw, sched, id) {
+    const info = matchInfo(draw, sched, id);
+    if (!info.p1 && !info.p2) return;
+    const t = await tournamentOf(draw.tournamentId);
+    const sm = info.sm || {};
+    const venue = t ? [t.venue, t.venue_address].filter(Boolean).join(', ') : '';
+    const row = (k, v) => `<div class="mm__row"><dt>${k}</dt><dd>${v ? esc(v) : '<span class="mm__tbd">To be announced</span>'}</dd></div>`;
+    const status = sm.status === 'done' ? 'Finished' : sm.status === 'live' ? 'Live now' : 'Scheduled';
+
+    const old = document.getElementById('mmModal'); if (old) old.remove();
+    const el = document.createElement('div');
+    el.id = 'mmModal'; el.className = 'mm no-print';
+    el.innerHTML = `<div class="mm__card" role="dialog" aria-modal="true" aria-label="Match details">
+      <button class="mm__x" aria-label="Close">×</button>
+      <p class="mm__tour">${esc(draw.tournament || '')}</p>
+      <p class="mm__event">${esc(draw.event || '')} · ${esc(info.round)}${info.no ? ' · Match ' + esc(info.no) : ''}</p>
+      <div class="mm__vs"><span>${esc(info.p1 || 'To be decided')}</span><em>v</em><span>${esc(info.p2 || 'To be decided')}</span></div>
+      ${sm.score ? `<p class="mm__score">${esc(sm.score)}${sm.winner ? ' · ' + esc(sm.winner) + ' won' : ''}</p>` : ''}
+      <dl class="mm__list">
+        ${row('Court', sm.court ? 'Court ' + sm.court : '')}
+        ${row('Time', fmtWhen(sm.time))}
+        ${row('Venue', venue)}
+        ${row('Referee', sm.referee)}
+        ${row('Status', status)}
+      </dl></div>`;
+    const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    el.addEventListener('click', e => { if (e.target === el || e.target.closest('.mm__x')) close(); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(el);
+    el.querySelector('.mm__x').focus();
   }
 
   /* ---------- Entry point ---------- */
@@ -138,6 +208,10 @@
 
     el.innerHTML = head +
       (draw.format === 'groups' ? groupsHTML(draw, sched) : knockoutHTML(draw, sched));
+    el.onclick = e => {
+      const m = e.target.closest('[data-mid]');
+      if (m && el.contains(m)) openMatch(draw, sched, m.dataset.mid);
+    };
   }
 
   window.DrawView = { render, esc };
