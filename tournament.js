@@ -203,7 +203,12 @@ async function entriesPanel(box) {
         <button class="btn btn--solid" type="submit">Add player</button>
         <span class="pad__publish-state" id="entState"></span>
       </form>
-    </div>` : `<p class="pad__publish-note"><a href="drawmaker.html">Organiser? Sign in on the draw maker page</a>, then come back here to add players.</p>`;
+    </div>` : `<form id="entLogin" class="ent-admin">
+      <h3 class="tsec__h">Organiser sign-in</h3>
+      <div class="ent-admin__grid"><label class="pad__field"><span>Admin password</span><input class="pad__name" type="password" name="pw" autocomplete="current-password" required></label></div>
+      <button class="btn btn--solid" type="submit">Sign in to add players</button>
+      <span class="pad__publish-state" id="entLoginState"></span>
+    </form>`;
 
   box.innerHTML = `${admin}
     ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
@@ -217,6 +222,17 @@ async function entriesPanel(box) {
 }
 
 document.addEventListener('submit', async e => {
+  if (e.target.id === 'entLogin') {
+    e.preventDefault();
+    const pw = new FormData(e.target).get('pw');
+    const st = document.getElementById('entLoginState');
+    st.textContent = 'Checking…';
+    sessionStorage.setItem('nr-pass', pw);
+    await checkAdmin();
+    if (!isAdmin) { sessionStorage.removeItem('nr-pass'); st.textContent = 'Wrong password, or not the organiser password.'; return; }
+    show();
+    return;
+  }
   if (e.target.id !== 'entForm') return;
   e.preventDefault();
   const f = new FormData(e.target);
