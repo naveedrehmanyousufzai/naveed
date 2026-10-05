@@ -68,7 +68,31 @@ async function renderNews() {
 /* ---------- Results table + year filter ----------
    The file in /content plus anything added on the site (kept on the server). */
 const MONTHS_ = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-const monthOf = r => { const m = MONTHS_.findIndex(x => String(r.dates || '').toLowerCase().includes(x)); return m + 1; };
+const MONTHN_ = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/* "15-20 Oct 2012", "May-13", "Aug 2013", "2013-08-14" -> {y, m, d} (last two may be 0) */
+function parseWhen(r) {
+  const t = String(r.dates || '').trim(), low = t.toLowerCase();
+  let y = Number(r.year) || 0, m = MONTHS_.findIndex(x => low.includes(x)) + 1, d = 0;
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) { y = Number(iso[1]); m = Number(iso[2]); d = Number(iso[3]); }
+  else {
+    const y4 = t.match(/\b(19|20)\d{2}\b/); if (y4) y = Number(y4[0]);
+    const dm = t.match(/^(\d{1,2})\b/); if (dm) d = Number(dm[1]);
+    const ym = low.match(/[a-z]{3}[a-z]*[-\/ ](\d{2})$/); if (!y4 && ym) y = 2000 + Number(ym[1]);
+  }
+  return { y, m, d };
+}
+const whenKey = r => { const w = parseWhen(r); return w.y * 10000 + w.m * 100 + w.d; };
+function whenText(r) {
+  const w = parseWhen(r), t = String(r.dates || '').trim();
+  if (!t) return String(r.year || '');
+  const hasY = /\b(19|20)\d{2}\b/.test(t) && !/^\d{4}-\d{2}-\d{2}/.test(t);
+  if (hasY) return t;
+  const rng = t.match(/^(\d{1,2}(?:\s*-\s*\d{1,2})?)\s+([A-Za-z]+)/);
+  if (rng) return rng[1] + ' ' + rng[2] + ' ' + w.y;
+  if (w.m) return (w.d ? w.d + ' ' : '') + MONTHN_[w.m - 1] + ' ' + w.y;
+  return t + ' ' + (w.y || r.year || '');
+}
 window.resultsAdded = [];
 
 async function renderResults() {
@@ -84,7 +108,7 @@ async function renderResults() {
   const hidden = new Set(window.resultsAdded.filter(r => r.replaces).map(r => r.replaces));
   const items = d.items.filter(r => !hidden.has(keyOf(r))).map((r, i) => ({ ...r, _o: i, _key: keyOf(r) }))
     .concat(window.resultsAdded.filter(r => !r.hidden).map((r, i) => ({ ...r, _o: 1000 + i })));
-  items.sort((a, b) => String(b.year).localeCompare(String(a.year)) || monthOf(b) - monthOf(a) || a._o - b._o);
+  items.sort((a, b) => whenKey(b) - whenKey(a) || a._o - b._o);
   const years = [...new Set(items.map(r => r.year))].sort().reverse();
   window.resultsView = items;
   const admin = !!window.ResultsAdmin && ResultsAdmin.on;
@@ -102,7 +126,7 @@ async function renderResults() {
         ${items.map((r, ri) => `
         <tr data-year="${esc(r.year)}" data-open="${ri}" tabindex="0" class="res__row">
           <td data-col="tournament">${esc(r.tournament)}</td>
-          <td data-col="date">${esc(r.dates || r.year)}</td>
+          <td data-col="date">${esc(whenText(r))}</td>
           <td data-col="venue">${esc(r.venue)}${admin ? ` <button class="ent-edit" data-redit="${ri}" aria-label="Edit">\u270e</button><button class="ent-del" data-rdel="${ri}" aria-label="Remove">\u00d7</button>` : ''}</td>
         </tr>`).join('')}
       </tbody>
@@ -115,7 +139,7 @@ function openResult(ri) {
   const r = (window.resultsView || [])[ri];
   if (!r) return;
   document.getElementById('resModal')?.remove();
-  const rows = [['Date', r.dates || r.year], ['Venue', r.venue], ['Category', r.category], ['Result', r.result]]
+  const rows = [['Date', whenText(r)], ['Venue', r.venue], ['Category', r.category], ['Result', r.result]]
     .filter(x => x[1]).map(x => `<div class="mm__row"><dt>${x[0]}</dt><dd>${esc(x[1])}</dd></div>`).join('');
   const links = (r.links || []).map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)} \u2197</a></li>`).join('');
   const photos = (r.photos || []).map(p => `<a href="${esc(p)}" target="_blank" rel="noopener"><img src="${esc(p)}" alt="" loading="lazy"></a>`).join('');
