@@ -30,6 +30,34 @@
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Sign in as organiser first.' : 'Could not save.');
     return (await r.json()).items;
   }
+  let photos = [];
+  const linksToText = a => (a || []).map(l => (l.label ? l.label + ' | ' : '') + l.url).join('\n');
+  const textToLinks = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => {
+    const i = x.indexOf('|'); return i > -1 ? { label: x.slice(0, i).trim(), url: x.slice(i + 1).trim() } : { label: '', url: x };
+  });
+  function drawPhotos() {
+    const box = $('raPhotos'); if (!box) return;
+    box.innerHTML = photos.map((p, i) => `<span class="res-photos__i"><img src="${e(p)}" alt=""><button type="button" data-pdel="${i}" aria-label="Remove photo">\u00d7</button></span>`).join('');
+  }
+  function shrink(file) {
+    return new Promise((ok, no) => {
+      const img = new Image(), u = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => no(new Error('Could not read that image.'));
+      img.src = u;
+    });
+  }
+  async function uploadPhoto(file) {
+    const data = await shrink(file);
+    const r = await fetch('/api/respic', { method: 'POST', headers: headers(), body: JSON.stringify({ data }) });
+    if (!r.ok) throw new Error('Photo upload failed.');
+    return (await r.json()).url;
+  }
   const current = () => (window.resultsAdded || []).slice();
 
   /* ---------- Reading an Excel sheet ----------
@@ -126,6 +154,13 @@
           <label class="pad__field"><span>Venue</span><input class="pad__name" name="venue" placeholder="Karachi, Pakistan"></label>
           <label class="pad__field"><span>Result</span><input class="pad__name" name="result" placeholder="Winner, Runner up…" required></label>
         </div>
+        <label class="pad__field"><span>About this tournament (shown in the popup)</span><textarea class="pad__name" name="notes" rows="3"></textarea></label>
+        <label class="pad__field"><span>Media links, one per line: <i>Label | https://…</i></span><textarea class="pad__name" name="links" rows="3" placeholder="Match highlights | https://youtube.com/…"></textarea></label>
+        <div class="pad__field"><span>Photographs</span>
+          <div class="res-photos" id="raPhotos"></div>
+          <label class="btn btn--ghost" for="raPhotoFile" style="cursor:pointer">Add photos</label>
+          <input type="file" id="raPhotoFile" accept="image/*" multiple hidden>
+        </div>
         <button class="btn btn--solid" type="submit">Save tournament</button> <button class="btn btn--ghost" type="button" id="raCancel">Cancel</button>
         <span class="pad__publish-state" id="raFormState"></span>
       </form>
@@ -137,8 +172,8 @@
   async function refresh() { await window.renderResults(); }
 
   root.addEventListener('click', async ev => {
-    if (ev.target.id === 'raAdd') { const f = $('raForm'); f.reset(); $('raFormTitle').textContent = 'Add tournament'; f.hidden = !f.hidden; }
-    if (ev.target.id === 'raCancel') { $('raForm').reset(); $('raForm').hidden = true; }
+    if (ev.target.id === 'raAdd') { const f = $('raForm'); f.reset(); photos = []; drawPhotos(); $('raFormTitle').textContent = 'Add tournament'; f.hidden = !f.hidden; }
+    if (ev.target.id === 'raCancel') { $('raForm').reset(); photos = []; drawPhotos(); $('raForm').hidden = true; }
     if (ev.target.id === 'raImport') {
       const st = $('raState');
       const have = current();
@@ -150,7 +185,17 @@
       } catch (err) { st.textContent = err.message; }
     }
   });
+  root.addEventListener('click', ev => {
+    const d = ev.target.closest('[data-pdel]');
+    if (d) { photos.splice(Number(d.dataset.pdel), 1); drawPhotos(); }
+  });
   root.addEventListener('change', async ev => {
+    if (ev.target.id === 'raPhotoFile') {
+      const st = $('raFormState'); st.textContent = 'Uploading photos…';
+      try { for (const f of ev.target.files) photos.push(await uploadPhoto(f)); st.textContent = ''; drawPhotos(); }
+      catch (err) { st.textContent = err.message; }
+      ev.target.value = ''; return;
+    }
     if (ev.target.id === 'raFile') {
       const f = ev.target.files[0]; if (!f) return;
       const box = $('raPreview'); box.hidden = false; box.innerHTML = '<p class="pad__empty">Reading…</p>';
@@ -167,7 +212,7 @@
     if (!ev.target.matches('#raForm')) return;
     ev.preventDefault();
     const f = new FormData(ev.target), st = $('raFormState');
-    const r = Object.fromEntries(f.entries()); r.win = isWin(r.result || '');
+    const r = Object.fromEntries(f.entries()); r.win = isWin(r.result || ''); r.links = textToLinks(f.get('links')); r.photos = photos.slice();
     const list = current();
     const at = r.id ? list.findIndex(x => x.id === r.id) : -1;
     if (at >= 0) list[at] = { ...list[at], ...r }; else { delete r.id; list.push(r); }
@@ -185,6 +230,7 @@
     const f = $('raForm');
     f.reset(); f.hidden = false;
     for (const k of ['tournament', 'dates', 'year', 'category', 'venue', 'result']) f.elements[k].value = r[k] || '';
+    f.elements.notes.value = r.notes || ''; f.elements.links.value = linksToText(r.links); photos = (r.photos || []).slice(); drawPhotos();
     f.elements.id.value = r.id || '';
     f.elements.replaces.value = r.id ? (r.replaces || '') : (r._key || '');
     $('raFormTitle').textContent = 'Edit tournament';

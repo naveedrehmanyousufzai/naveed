@@ -460,9 +460,40 @@ async function resultsRoute(request, env) {
       win: !!r.win,
       replaces: s(r.replaces, 200),
       hidden: !!r.hidden,
+      notes: s(r.notes, 3000),
+      links: (Array.isArray(r.links) ? r.links : []).slice(0, 12).map(l => ({ label: s(l.label, 80), url: s(l.url, 400) })).filter(l => /^https?:\/\//i.test(l.url)),
+      photos: (Array.isArray(r.photos) ? r.photos : []).slice(0, 24).map(p => s(p, 200)).filter(p => /^(\/api\/respic\?id=[a-z0-9]+|https?:\/\/)/i.test(p)),
     })).filter(r => r.tournament);
     await env.DRAW_KV.put("career:results", JSON.stringify({ items, updated: Date.now() }));
     return json(JSON.stringify({ ok: true, items }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
+/* Tournament photos: POST {data:"data:image/jpeg;base64,..."} (organiser) -> {url}; GET ?id= */
+async function respicRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  if (request.method === "GET") {
+    const id = new URL(request.url).searchParams.get("id") || "";
+    const raw = /^[a-z0-9]{6,20}$/.test(id) ? await env.DRAW_KV.get("respic:" + id) : null;
+    if (!raw) return new Response("Not found", { status: 404 });
+    const m = raw.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+    if (!m) return new Response("Not found", { status: 404 });
+    const bin = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0));
+    return new Response(bin, { headers: { "content-type": m[1], "cache-control": "public, max-age=31536000, immutable" } });
+  }
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    const data = String(b.data || "");
+    if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(data)) return fail("Not an image.", 400);
+    if (data.length > 2200000) return fail("Photo is too large.", 413);
+    const id = Math.random().toString(36).slice(2, 12);
+    await env.DRAW_KV.put("respic:" + id, data);
+    return json(JSON.stringify({ ok: true, url: "/api/respic?id=" + id }));
   }
   return fail("Method not allowed.", 405);
 }
@@ -537,6 +568,7 @@ export default {
     if (path === "/api/feedback") return feedbackRoute(request, env);
     if (path === "/api/entries") return entriesRoute(request, env);
     if (path === "/api/results") return resultsRoute(request, env);
+    if (path === "/api/respic") return respicRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */
     return env.ASSETS.fetch(request);

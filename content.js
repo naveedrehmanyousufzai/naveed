@@ -96,20 +96,55 @@ async function renderResults() {
     </div>
     <table class="table">
       <thead>
-        <tr><th>Year</th><th>Tournament</th><th>Venue</th><th>Result</th></tr>
+        <tr><th>Tournament</th><th>Date</th><th>Venue</th></tr>
       </thead>
       <tbody>
         ${items.map((r, ri) => `
-        <tr data-year="${esc(r.year)}">
-          <td data-col="year">${esc(r.year)}</td>
-          <td data-col="tournament">${esc(r.tournament)}${(r.dates || r.category) ? `<small class="res__sub">${esc([r.dates, r.category].filter(Boolean).join(' \u00b7 '))}</small>` : ''}</td>
-          <td data-col="venue">${esc(r.venue)}</td>
-          <td data-col="result"${r.win ? ' class="win"' : ''}>${esc(r.result)}${admin ? ` <button class="ent-edit" data-redit="${ri}" aria-label="Edit">\u270e</button><button class="ent-del" data-rdel="${ri}" aria-label="Remove">\u00d7</button>` : ''}</td>
+        <tr data-year="${esc(r.year)}" data-open="${ri}" tabindex="0" class="res__row">
+          <td data-col="tournament">${esc(r.tournament)}</td>
+          <td data-col="date">${esc(r.dates || r.year)}</td>
+          <td data-col="venue">${esc(r.venue)}${admin ? ` <button class="ent-edit" data-redit="${ri}" aria-label="Edit">\u270e</button><button class="ent-del" data-rdel="${ri}" aria-label="Remove">\u00d7</button>` : ''}</td>
         </tr>`).join('')}
       </tbody>
     </table>`;
   if (window.ResultsAdmin) ResultsAdmin.afterRender();
 }
+
+/* ---------- Tournament popup ---------- */
+function openResult(ri) {
+  const r = (window.resultsView || [])[ri];
+  if (!r) return;
+  document.getElementById('resModal')?.remove();
+  const rows = [['Date', r.dates || r.year], ['Venue', r.venue], ['Category', r.category], ['Result', r.result]]
+    .filter(x => x[1]).map(x => `<div class="mm__row"><dt>${x[0]}</dt><dd>${esc(x[1])}</dd></div>`).join('');
+  const links = (r.links || []).map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)} \u2197</a></li>`).join('');
+  const photos = (r.photos || []).map(p => `<a href="${esc(p)}" target="_blank" rel="noopener"><img src="${esc(p)}" alt="" loading="lazy"></a>`).join('');
+  const el = document.createElement('div');
+  el.id = 'resModal'; el.className = 'mm';
+  el.innerHTML = `<div class="mm__card" role="dialog" aria-modal="true" aria-label="Tournament details">
+    <button class="mm__x" aria-label="Close">\u00d7</button>
+    <p class="mm__tour">${esc(r.tournament)}</p>
+    <dl class="mm__list">${rows}</dl>
+    ${r.notes ? `<p class="res__notes">${esc(r.notes)}</p>` : ''}
+    ${links ? `<h4 class="res__h">Media &amp; links</h4><ul class="res__links">${links}</ul>` : ''}
+    ${photos ? `<h4 class="res__h">Photographs</h4><div class="res__photos">${photos}</div>` : ''}
+  </div>`;
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = ev => { if (ev.key === 'Escape') close(); };
+  el.addEventListener('click', ev => { if (ev.target === el || ev.target.classList.contains('mm__x')) close(); });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(el);
+}
+document.addEventListener('click', ev => {
+  if (ev.target.closest('button, a')) return;
+  const tr = ev.target.closest('tr[data-open]');
+  if (tr) openResult(Number(tr.dataset.open));
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter') return;
+  const tr = ev.target.closest && ev.target.closest('tr[data-open]');
+  if (tr) openResult(Number(tr.dataset.open));
+});
 
 /* ---------- Store grid ---------- */
 async function renderProducts() {
