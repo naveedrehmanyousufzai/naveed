@@ -39,7 +39,7 @@ const LIVE_TTL_SECONDS = 3600;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-admin-password",
 };
 
@@ -299,6 +299,16 @@ async function scheduleRoute(request, env) {
     out.updated = Date.now();
     await env.DRAW_KV.put(SCHED_PREFIX + id, JSON.stringify(out));
     return json(JSON.stringify(out));
+  }
+
+  /* Organiser removes a schedule together with its draw (clearing out old tournaments). */
+  if (request.method === "DELETE") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    if (!id) return fail("No schedule id given.", 400);
+    await env.DRAW_KV.delete(SCHED_PREFIX + id);
+    await env.DRAW_KV.delete(DRAW_PREFIX + id);
+    return json(JSON.stringify({ ok: true }));
   }
 
   return fail("Method not allowed.", 405);

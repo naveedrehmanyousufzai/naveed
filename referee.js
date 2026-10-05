@@ -679,7 +679,7 @@ function padAnnouncement() {
       pad.games.map(g => g[0] + '-' + g[1]).join(', ') + '.';
   }
 
-  if (pad.phase === 'interval') {
+  if (pad.games.length > 0) {          // between games, and at 0-0 of the next one
     const n = pad.games.length;
     const g = pad.games[n - 1];
     const w = pad.gw[n - 1];
@@ -869,8 +869,29 @@ async function loadMine() {
     schedules = res.ok ? (await res.json()).schedules || [] : [];
   } catch { schedules = []; }
 
+  /* A tournament deleted from the site must disappear from here too. */
+  let orphans = [];
+  try {
+    const tr = await fetch('/content/tournaments.json', { cache: 'no-store' });
+    if (tr.ok) {
+      const live = new Set(((await tr.json()).tournaments || []).map(t => t.id));
+      const tid = s => s.tournamentId || String(s.id || '').split('__')[0];
+      orphans = schedules.filter(s => !live.has(tid(s)));
+      schedules = schedules.filter(s => live.has(tid(s)));
+    }
+  } catch { /* keep everything if the list cannot be read */ }
+  const cleanup = (sessionStorage.getItem(NAME_KEY) === 'Admin' && orphans.length)
+    ? `<p class="pad__empty">${orphans.length} old schedule${orphans.length > 1 ? 's' : ''} from deleted tournaments. <button class="btn btn--ghost" id="padPurge">Delete ${orphans.length === 1 ? 'it' : 'them'}</button></p>` : '';
+  const pb = () => { const b = document.getElementById('padPurge'); if (b) b.onclick = async () => {
+    if (!confirm('Delete the old schedules and draws of removed tournaments?')) return;
+    b.disabled = true;
+    for (const s of orphans) await fetch('/api/schedule?id=' + encodeURIComponent(s.id), { method: 'DELETE', headers: { 'x-admin-password': sessionStorage.getItem(PASS_KEY) || '' } });
+    loadMine();
+  }; };
+
   if (!schedules.length) {
-    box.innerHTML = '<p class="pad__empty">No schedule is published yet. You can still score a match by hand below.</p>';
+    box.innerHTML = '<p class="pad__empty">No schedule is published yet. You can still score a match by hand below.</p>' + cleanup;
+    pb();
     return;
   }
 
@@ -893,6 +914,8 @@ async function loadMine() {
       <button class="btn btn--solid" data-start="${esc(m.sid)}|${esc(m.id)}">Score this match</button>
     </div>`).join('')
     : `<p class="pad__empty">Nothing is assigned to <strong>${esc(me)}</strong> right now.</p>${padWhyEmpty(me)}`;
+  box.insertAdjacentHTML('beforeend', cleanup);
+  pb();
 }
 
 /* When the list is empty, say why — it is nearly always a name mismatch,
