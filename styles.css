@@ -1736,3 +1736,7 @@ a.tt__row strong { text-decoration: none; }
 .res__photos img, .res-photos img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block; }
 .res-photos__i { position: relative; }
 .res-photos__i button { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,.7); color: #fff; border: 0; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; }
+
+/* 44. Links inside tournament information */
+.icard__row, .tprose { overflow-wrap: anywhere; }
+.icard__row a, .tprose a { color: var(--gold-ink); text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }

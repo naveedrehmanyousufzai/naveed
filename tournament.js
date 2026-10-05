@@ -65,14 +65,24 @@ function divChips(key, names, noAll) {
 /* ============================================================
    INFO
    ============================================================ */
+/* Escapes text, turns web addresses into links, keeps line breaks */
+function rich(text) {
+  return esc(text).replace(/(https?:\/\/|www\.)[^\s<]+/gi, m => {
+    const tail = (m.match(/[.,;:!?)\]]+$/) || [''])[0];
+    const url = tail ? m.slice(0, -tail.length) : m;
+    const href = /^www\./i.test(url) ? 'https://' + url : url;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>${tail}`;
+  }).replace(/\n/g, '<br>');
+}
+
 function infoPanel() {
   const row = (k, v) => v ? `<p class="icard__row"><b>${k}</b> ${v}</p>` : '';
   return `
   <div class="icards">
     <article class="icard">
       <h3>Promoters</h3>
-      ${row('Organiser:', esc(T.organiser))}
-      ${row('Promoter:', esc(T.promoters))}
+      ${row('Organiser:', rich(T.organiser))}
+      ${row('Promoter:', rich(T.promoters))}
       ${row('Contact:', T.contact ? `<a href="mailto:${esc(T.contact)}">${esc(T.contact)}</a>` : '')}
     </article>
     <article class="icard">
@@ -83,15 +93,15 @@ function infoPanel() {
     </article>
     <article class="icard">
       <h3>Level and prizes</h3>
-      ${row('Level:', esc(T.level))}
-      ${row('Prize money:', esc(T.prize_money))}
+      ${row('Level:', rich(T.level))}
+      ${row('Prize money:', rich(T.prize_money))}
       ${row('Status:', statusTag(status(T)))}
     </article>
     <article class="icard">
       <h3>Venue</h3>
-      ${row('', `<strong>${esc(T.venue)}</strong>`)}
-      ${row('', esc(T.venue_address))}
-      ${row('', esc(T.location))}
+      ${row('', `<strong>${rich(T.venue)}</strong>`)}
+      ${row('', rich(T.venue_address))}
+      ${row('', rich(T.location))}
     </article>
   </div>
 
@@ -101,11 +111,11 @@ function infoPanel() {
     <p class="tt__divs tt__divs--big">${T.divisions.map(d => `<i>${esc(d)}</i>`).join('')}</p>
   </section>` : ''}
 
-  ${T.description ? `<section class="tsec"><h3>About</h3><p class="tprose">${esc(T.description)}</p></section>` : ''}
+  ${T.description ? `<section class="tsec"><h3>About</h3><p class="tprose">${rich(T.description)}</p></section>` : ''}
 
   <section class="tsec">
     <h3>How to enter</h3>
-    <p class="tprose">${esc(T.how_to_enter || 'Entry details will be announced soon.')}</p>
+    <p class="tprose">${rich(T.how_to_enter || 'Entry details will be announced soon.')}</p>
     ${T.contact ? `<p class="tprose">Questions? <a href="mailto:${esc(T.contact)}">${esc(T.contact)}</a></p>` : ''}
   </section>`;
 }
