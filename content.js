@@ -80,9 +80,13 @@ async function renderResults() {
     if (res.ok) window.resultsAdded = (await res.json()).items || [];
   } catch { /* offline: the file alone */ }
 
-  const items = d.items.map((r, i) => ({ ...r, _o: i })).concat(window.resultsAdded.map((r, i) => ({ ...r, _o: 1000 + i })));
+  const keyOf = r => String(r.year).trim() + '|' + String(r.tournament).trim().toLowerCase();
+  const hidden = new Set(window.resultsAdded.filter(r => r.replaces).map(r => r.replaces));
+  const items = d.items.filter(r => !hidden.has(keyOf(r))).map((r, i) => ({ ...r, _o: i, _key: keyOf(r) }))
+    .concat(window.resultsAdded.filter(r => !r.hidden).map((r, i) => ({ ...r, _o: 1000 + i })));
   items.sort((a, b) => String(b.year).localeCompare(String(a.year)) || monthOf(b) - monthOf(a) || a._o - b._o);
   const years = [...new Set(items.map(r => r.year))].sort().reverse();
+  window.resultsView = items;
   const admin = !!window.ResultsAdmin && ResultsAdmin.on;
 
   root.innerHTML = `
@@ -95,12 +99,12 @@ async function renderResults() {
         <tr><th>Year</th><th>Tournament</th><th>Venue</th><th>Result</th></tr>
       </thead>
       <tbody>
-        ${items.map(r => `
+        ${items.map((r, ri) => `
         <tr data-year="${esc(r.year)}">
           <td data-col="year">${esc(r.year)}</td>
           <td data-col="tournament">${esc(r.tournament)}${(r.dates || r.category) ? `<small class="res__sub">${esc([r.dates, r.category].filter(Boolean).join(' \u00b7 '))}</small>` : ''}</td>
           <td data-col="venue">${esc(r.venue)}</td>
-          <td data-col="result"${r.win ? ' class="win"' : ''}>${esc(r.result)}${admin && r.id ? ` <button class="ent-del" data-rdel="${esc(r.id)}" aria-label="Remove">\u00d7</button>` : ''}</td>
+          <td data-col="result"${r.win ? ' class="win"' : ''}>${esc(r.result)}${admin ? ` <button class="ent-edit" data-redit="${ri}" aria-label="Edit">\u270e</button><button class="ent-del" data-rdel="${ri}" aria-label="Remove">\u00d7</button>` : ''}</td>
         </tr>`).join('')}
       </tbody>
     </table>`;

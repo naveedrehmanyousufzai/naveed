@@ -116,6 +116,8 @@
         <input type="file" id="raFile" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <form class="res-admin__box" id="raForm" hidden>
+        <h3 class="tsec__h" id="raFormTitle">Add tournament</h3>
+        <input type="hidden" name="id"><input type="hidden" name="replaces">
         <div class="res-admin__grid">
           <label class="pad__field"><span>Tournament</span><input class="pad__name" name="tournament" required></label>
           <label class="pad__field"><span>Dates (e.g. 15-20 Oct 2026)</span><input class="pad__name" name="dates"></label>
@@ -124,7 +126,7 @@
           <label class="pad__field"><span>Venue</span><input class="pad__name" name="venue" placeholder="Karachi, Pakistan"></label>
           <label class="pad__field"><span>Result</span><input class="pad__name" name="result" placeholder="Winner, Runner up…" required></label>
         </div>
-        <button class="btn btn--solid" type="submit">Save tournament</button>
+        <button class="btn btn--solid" type="submit">Save tournament</button> <button class="btn btn--ghost" type="button" id="raCancel">Cancel</button>
         <span class="pad__publish-state" id="raFormState"></span>
       </form>
       <p class="pad__publish-note">Excel columns: <b>#, Name of Tournament, Dates, Category, Result</b>, with the place on the row under each name.</p>
@@ -135,7 +137,8 @@
   async function refresh() { await window.renderResults(); }
 
   root.addEventListener('click', async ev => {
-    if (ev.target.id === 'raAdd') $('raForm').hidden = !$('raForm').hidden;
+    if (ev.target.id === 'raAdd') { const f = $('raForm'); f.reset(); $('raFormTitle').textContent = 'Add tournament'; f.hidden = !f.hidden; }
+    if (ev.target.id === 'raCancel') { $('raForm').reset(); $('raForm').hidden = true; }
     if (ev.target.id === 'raImport') {
       const st = $('raState');
       const have = current();
@@ -161,19 +164,42 @@
     }
   });
   root.addEventListener('submit', async ev => {
-    if (ev.target.id !== 'raForm') return;
+    if (!ev.target.matches('#raForm')) return;
     ev.preventDefault();
     const f = new FormData(ev.target), st = $('raFormState');
     const r = Object.fromEntries(f.entries()); r.win = isWin(r.result || '');
+    const list = current();
+    const at = r.id ? list.findIndex(x => x.id === r.id) : -1;
+    if (at >= 0) list[at] = { ...list[at], ...r }; else { delete r.id; list.push(r); }
     st.textContent = 'Saving…';
-    try { await saveAll(current().concat([r])); ev.target.reset(); ev.target.hidden = true; st.textContent = ''; await refresh(); }
+    try { await saveAll(list); ev.target.reset(); ev.target.hidden = true; st.textContent = ''; await refresh(); }
     catch (err) { st.textContent = err.message; }
+  });
+
+  /* Edit: a row from the file is "replaced" by a copy; a row added here is changed in place */
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-redit]');
+    if (!b) return;
+    const r = (window.resultsView || [])[Number(b.dataset.redit)];
+    if (!r) return;
+    const f = $('raForm');
+    f.reset(); f.hidden = false;
+    for (const k of ['tournament', 'dates', 'year', 'category', 'venue', 'result']) f.elements[k].value = r[k] || '';
+    f.elements.id.value = r.id || '';
+    f.elements.replaces.value = r.id ? (r.replaces || '') : (r._key || '');
+    $('raFormTitle').textContent = 'Edit tournament';
+    f.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
   document.addEventListener('click', async ev => {
     const d = ev.target.closest('[data-rdel]');
     if (!d || !confirm('Remove this tournament?')) return;
-    try { await saveAll(current().filter(r => r.id !== d.dataset.rdel)); await refresh(); } catch (err) { alert(err.message); }
+    const r = (window.resultsView || [])[Number(d.dataset.rdel)];
+    if (!r) return;
+    let list = current();
+    if (r.id) list = list.filter(x => x.id !== r.id);
+    else list.push({ year: r.year, tournament: r.tournament, venue: r.venue, result: r.result, win: !!r.win, replaces: r._key, hidden: true });
+    try { await saveAll(list); await refresh(); } catch (err) { alert(err.message); }
   });
 
   /* Organiser sign-in, only shown to people who ask for it (?admin or after a draw-maker sign-in) */

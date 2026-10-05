@@ -1723,3 +1723,4 @@ a.tt__row strong { text-decoration: none; }
 .res-admin__box { border: 1px solid var(--hairline); background: var(--card); padding: 16px; margin-top: 14px; }
 .res-admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .res-admin__box[hidden] { display: none !important; }
+.ent-edit { background: none; border: 0; color: var(--gold-ink); font-size: 18px; cursor: pointer; padding: 2px 8px; }

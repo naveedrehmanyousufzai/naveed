@@ -458,6 +458,8 @@ async function resultsRoute(request, env) {
       venue: s(r.venue, 100),
       result: s(r.result, 80),
       win: !!r.win,
+      replaces: s(r.replaces, 200),
+      hidden: !!r.hidden,
     })).filter(r => r.tournament);
     await env.DRAW_KV.put("career:results", JSON.stringify({ items, updated: Date.now() }));
     return json(JSON.stringify({ ok: true, items }));
