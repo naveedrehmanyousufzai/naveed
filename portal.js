@@ -149,7 +149,7 @@ async function pollLive() {
   }
 
   try {
-    renderTop3(await NR.load('rankings'));
+    renderTop3(await NR.loadRankings());
   } catch (err) {
     console.error('Rankings failed to load:', err);
     document.getElementById('rankings-root').innerHTML =

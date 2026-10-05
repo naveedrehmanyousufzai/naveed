@@ -78,6 +78,21 @@
     return cache[name];
   }
 
+  /* The file's rankings, with any imported ones replacing the categories they cover */
+  async function loadRankings() {
+    const base = await load('rankings');
+    let extra = [];
+    try {
+      const r = await fetch('/api/rankings', { cache: 'no-store' });
+      if (r.ok) extra = (await r.json()).players || [];
+    } catch { /* file only */ }
+    if (!extra.length) return base;
+    const over = new Set(extra.map(p => p.category));
+    const categories = (base.categories || []).slice();
+    over.forEach(c => { if (!categories.includes(c)) categories.push(c); });
+    return { ...base, categories, players: (base.players || []).filter(p => !over.has(p.category)).concat(extra), imported: over };
+  }
+
   async function tournaments() {
     const d = await load('tournaments');
     return (d.tournaments || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
@@ -85,5 +100,5 @@
 
   const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  window.NR = { esc, day, fmtDate, fmtRange, fmtStamp, status, statusTag, STATUSES, load, tournaments, slug };
+  window.NR = { esc, day, fmtDate, fmtRange, fmtStamp, status, statusTag, STATUSES, load, loadRankings, tournaments, slug };
 })();

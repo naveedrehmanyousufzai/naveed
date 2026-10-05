@@ -40,11 +40,17 @@ document.getElementById('catFilters').addEventListener('click', e => {
   renderTabs(); renderTable();
 });
 
-NR.load('rankings').then(d => {
-  data = d;
+NR.loadRankings().then(d => {
+  data = d; window.rankingsData = d;
   if (!data.categories.includes(cat)) cat = data.categories[0] || '';
   renderTabs(); renderTable();
 }).catch(() => {
   document.getElementById('rankings-root').innerHTML =
     '<p class="pad__empty">Rankings could not be loaded. Please refresh.</p>';
+});
+
+window.reloadRankings = () => NR.loadRankings().then(d => {
+  data = d; window.rankingsData = d;
+  if (!data.categories.includes(cat)) cat = data.categories[0] || '';
+  renderTabs(); renderTable();
 });

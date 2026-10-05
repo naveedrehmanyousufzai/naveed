@@ -508,6 +508,49 @@ async function respicRoute(request, env) {
   return fail("Method not allowed.", 405);
 }
 
+/* ---------- Rankings imported from a file or Google Sheet ----------
+   GET  /api/rankings   public, {players:[{category,rank,name,club,points}]}
+   POST /api/rankings   organiser only, {players:[...]} replaces the imported list
+   POST /api/sheet      organiser only, {url} -> the Google Sheet (shared "anyone with the link") as CSV text */
+async function rankingsRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  if (request.method === "GET") {
+    const raw = await env.DRAW_KV.get("rankings:imported");
+    return json(JSON.stringify({ players: raw ? (JSON.parse(raw).players || []) : [] }));
+  }
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    if (!Array.isArray(b.players)) return fail("No players given.", 400);
+    const s = (v, n) => String(v ?? "").trim().slice(0, n);
+    const players = b.players.slice(0, 3000).map(p => ({
+      category: s(p.category, 40), rank: s(p.rank, 6), name: s(p.name, 100), club: s(p.club, 100), points: s(p.points, 12),
+    })).filter(p => p.category && p.name);
+    await env.DRAW_KV.put("rankings:imported", JSON.stringify({ players, updated: Date.now() }));
+    return json(JSON.stringify({ ok: true, count: players.length }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
+async function sheetRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (request.method !== "POST") return fail("Method not allowed.", 405);
+  const denied = needsPassword(request, env) || needsAdmin(request, env);
+  if (denied) return denied;
+  let b;
+  try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+  const m = String(b.url || "").match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([A-Za-z0-9_-]+)/);
+  if (!m) return fail("That is not a Google Sheets link.", 400);
+  const gid = (String(b.url).match(/[#&?]gid=(\d+)/) || [])[1];
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gid ? "&gid=" + gid : ""}`, { redirect: "follow" });
+  const text = await res.text();
+  if (!res.ok || /^\s*<(!doctype|html)/i.test(text)) return fail("Could not read the sheet. Share it as \"Anyone with the link can view\".", 400);
+  return json(JSON.stringify({ csv: text.slice(0, 2000000) }));
+}
+
 async function feedbackRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
@@ -578,6 +621,8 @@ export default {
     if (path === "/api/feedback") return feedbackRoute(request, env);
     if (path === "/api/entries") return entriesRoute(request, env);
     if (path === "/api/results") return resultsRoute(request, env);
+    if (path === "/api/rankings") return rankingsRoute(request, env);
+    if (path === "/api/sheet") return sheetRoute(request, env);
     if (path === "/api/respic") return respicRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */
