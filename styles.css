@@ -1740,3 +1740,10 @@ a.tt__row strong { text-decoration: none; }
 /* 44. Links inside tournament information */
 .icard__row, .tprose { overflow-wrap: anywhere; }
 .icard__row a, .tprose a { color: var(--gold-ink); text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+
+/* 45. Tournament admin */
+.tt__admin { display: inline-flex; gap: 2px; margin-top: 4px; }
+.thero__admin { margin: 10px 0 0; }
+.tad__cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.tad__cats label { display: flex; gap: 6px; align-items: center; font-size: var(--t-sm); }
+.tad textarea { width: 100%; font: inherit; }

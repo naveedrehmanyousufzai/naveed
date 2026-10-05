@@ -40,6 +40,7 @@ function frame() {
       <h1 class="thero__name">${esc(T.name)}</h1>
       <p class="thero__dates">${esc(fmtRange(T.start, T.end))}${T.location ? ' · ' + esc(T.location) : ''}</p>
       <p class="thero__tags">${statusTag(st)}${T.sample ? '<span class="sample-flag">Sample data</span>' : ''}</p>
+      ${window.TournamentsAdmin && TournamentsAdmin.on ? '<p class="thero__admin"><button class="btn btn--ghost" data-tedit>Edit tournament</button> <button class="btn btn--ghost" data-tdel>Delete tournament</button></p>' : ''}
     </div>
   </div>
   <div class="tlayout">
@@ -217,10 +218,12 @@ async function entriesPanel(box) {
         <span class="pad__publish-state" id="entState"></span>
       </form>
       <hr class="rule">
-      <h3 class="tsec__h">Import from a Word file</h3>
-      <p class="pad__publish-note">Use a table with the columns <b>Category, Rank, Name, Association, Country</b>. Excel files saved as CSV work too.
-      <a href="entries-template.docx" download>Download the template</a>.</p>
-      <input class="pad__name" type="file" id="entFile" accept=".docx,.csv,.txt">
+      <h3 class="tsec__h">Upload an entry list</h3>
+      <p class="pad__publish-note">Word, PDF, Excel or CSV. A table with the columns <b>Category, Rank, Name, Association, Country</b>
+      (or one table per category with the category as a heading; in Excel, one tab per category).
+      <a href="entries-template.docx" download>Download the Word template</a>.</p>
+      <label class="btn btn--solid" for="entFile" style="cursor:pointer">Upload entry list</label>
+      <input type="file" id="entFile" accept=".docx,.pdf,.xlsx,.xls,.csv,.txt" hidden>
       <div id="entPreview"></div>
     </div>` : `<form id="entLogin" class="ent-admin">
       <h3 class="tsec__h">Organiser sign-in</h3>
@@ -235,10 +238,39 @@ async function entriesPanel(box) {
       const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
       <table class="table plain-table"><thead><tr><th>Rank</th><th>Player</th><th>Association</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
-      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td>${e.cms ? '' : `<button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button>`}</td>` : ''}</tr>`).join('')}
+      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td style="white-space:nowrap">${e.cms ? '' : `<button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button>`}</td>` : ''}</tr>`).join('')}
       </tbody></table>`;
     }).join('')}`;
 }
+
+/* Edit a player in place */
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-eedit], [data-esave], [data-ecancel]'); if (!b) return;
+  if (b.dataset.ecancel !== undefined) { show(); return; }
+  if (b.dataset.eedit !== undefined) {
+    const p = entryList.find(x => x.id === b.dataset.eedit); if (!p) return;
+    const tr = b.closest('tr');
+    const inp = (f, v, w) => `<input class="pad__name" data-f="${f}" value="${esc(v || '')}" style="width:${w}">`;
+    tr.innerHTML = `<td>${inp('rank', p.rank, '56px')}</td>
+      <td>${inp('name', p.name, '100%')}<br><select class="pad__name" data-f="division">${ENTRY_CATS.map(c => `<option${c === p.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select> ${inp('country', p.country, '70px')}</td>
+      <td>${inp('club', p.club, '100%')}</td>
+      <td style="white-space:nowrap"><button class="btn btn--solid" data-esave="${esc(p.id)}">Save</button> <button class="btn btn--ghost" data-ecancel>Cancel</button></td>`;
+    return;
+  }
+  const p = entryList.find(x => x.id === b.dataset.esave); if (!p) return;
+  const v = Object.fromEntries([...b.closest('tr').querySelectorAll('[data-f]')].map(i => [i.dataset.f, i.value.trim()]));
+  if (!v.name) { alert('Enter a name.'); return; }
+  const before = entryList.slice();
+  Object.assign(p, { name: v.name, club: v.club, country: v.country, division: v.division, rank: v.rank ? Number(v.rank) || v.rank : null });
+  try { await saveEntries(); divPick.entries = v.division; } catch (err) { entryList = before; alert(err.message); }
+  show();
+});
+
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-tedit], [data-tdel]'); if (!b || !T) return;
+  if (b.hasAttribute('data-tedit')) TournamentsAdmin.edit(T);
+  else { try { if (await TournamentsAdmin.remove(T)) location.href = 'tournaments.html'; } catch (err) { alert(err.message); } }
+});
 
 document.addEventListener('submit', async e => {
   if (e.target.id === 'entLogin') {
@@ -249,7 +281,7 @@ document.addEventListener('submit', async e => {
     sessionStorage.setItem('nr-pass', pw);
     await checkAdmin();
     if (!isAdmin) { sessionStorage.removeItem('nr-pass'); st.textContent = 'Wrong password, or not the organiser password.'; return; }
-    show();
+    location.reload();
     return;
   }
   if (e.target.id !== 'entForm') return;
@@ -328,6 +360,55 @@ async function readDocx(file) {
   return items;
 }
 
+function loadScript(src) {
+  return new Promise((ok, no) => {
+    const s = document.createElement('script'); s.src = src; s.onload = ok;
+    s.onerror = () => no(new Error('Could not load the file reader. Check your connection.')); document.head.appendChild(s);
+  });
+}
+
+/* Excel: every sheet; a sheet named like a category sets the category */
+async function readExcel(file) {
+  if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const items = [];
+  for (const name of wb.SheetNames) {
+    items.push({ heading: name });
+    for (const r of XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' })) items.push({ row: r.map(c => String(c ?? '').trim()) });
+  }
+  return items;
+}
+
+/* PDF: text lines rebuilt from their position; wide gaps start a new column */
+async function readPdf(file) {
+  if (!window.pdfjsLib) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const items = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const tc = await (await pdf.getPage(p)).getTextContent();
+    const lines = [];
+    for (const it of tc.content ? tc.content.items : tc.items) {
+      if (!String(it.str).trim()) continue;
+      const y = it.transform[5], x = it.transform[4];
+      let ln = lines.find(l => Math.abs(l.y - y) < 3);
+      if (!ln) lines.push(ln = { y, parts: [] });
+      ln.parts.push({ x, w: it.width, s: it.str.trim() });
+    }
+    lines.sort((a, b) => b.y - a.y);
+    for (const ln of lines) {
+      ln.parts.sort((a, b) => a.x - b.x);
+      const cells = []; let end = null;
+      for (const q of ln.parts) {
+        if (end !== null && q.x - end < 7 && cells.length) cells[cells.length - 1] += ' ' + q.s; else cells.push(q.s);
+        end = q.x + q.w;
+      }
+      items.push({ row: cells });
+    }
+  }
+  return items;
+}
+
 function extractPlayers(items) {
   const out = [];
   let cat = null, cols = null;
@@ -336,6 +417,7 @@ function extractPlayers(items) {
     if (it.heading !== undefined) { const c = normCategory(it.heading); if (c) cat = c; continue; }
     const row = it.row.map(c => c.trim());
     if (!row.some(Boolean)) continue;
+    if (row.filter(Boolean).length === 1) { const c = normCategory(row.find(Boolean)); if (c) { cat = c; continue; } }   // a lone category line (PDF, Excel)
     const low = row.map(c => c.toLowerCase());
     if (low.some(c => /^(name|player|player name)$/.test(c))) {          // header row
       const find = re => low.findIndex(c => re.test(c));
@@ -383,8 +465,9 @@ document.addEventListener('change', async e => {
     const box = document.getElementById('entPreview');
     box.innerHTML = '<p class="pad__empty">Reading…</p>';
     try {
-      const items = /\.docx$/i.test(f.name)
-        ? await readDocx(f)
+      const items = /\.docx$/i.test(f.name) ? await readDocx(f)
+        : /\.pdf$/i.test(f.name) ? await readPdf(f)
+        : /\.xlsx?$/i.test(f.name) ? await readExcel(f)
         : parseCsv(await f.text()).map(row => ({ row }));
       importRows = extractPlayers(items);
       if (!importRows.length) box.innerHTML = '<p class="pad__empty">No players found. Use the template: a table with Category, Rank, Name, Association, Country.</p>';
@@ -560,8 +643,9 @@ document.addEventListener('submit', e => {
 });
 window.addEventListener('hashchange', () => { fromHash(); show(); window.scrollTo({ top: 0 }); });
 
-NR.tournaments().then(list => {
+NR.tournaments().then(async list => {
   T = list.find(t => t.id === id);
+  await TournamentsAdmin.ready;
   if (!T) {
     root.innerHTML = '<p class="pad__empty">That tournament could not be found. <a href="tournaments.html">See the calendar</a>.</p>';
     return;

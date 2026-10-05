@@ -551,6 +551,59 @@ async function sheetRoute(request, env) {
   return json(JSON.stringify({ csv: text.slice(0, 2000000) }));
 }
 
+/* ---------- Tournaments: the site's file, plus what the organiser changed on the page ----------
+   GET  /api/tournaments        public, the merged list {tournaments:[...]}
+   GET  /api/tournaments?raw=1  {items:[...], hidden:[ids]}  (what is stored here)
+   POST /api/tournaments        organiser only, {items, hidden} replaces what is stored here
+   An item with the id of a tournament in the file replaces it; a hidden id removes it. */
+async function tournamentsRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  const stored = async () => {
+    if (!env.DRAW_KV) return { items: [], hidden: [] };
+    const raw = await env.DRAW_KV.get("tournaments:edits");
+    const d = raw ? JSON.parse(raw) : {};
+    return { items: d.items || [], hidden: d.hidden || [] };
+  };
+  if (request.method === "GET") {
+    const st = await stored();
+    if (new URL(request.url).searchParams.get("raw")) return json(JSON.stringify(st));
+    let file = [];
+    try {
+      const res = await env.ASSETS.fetch(new Request(new URL("/content/tournaments.json", request.url)));
+      if (res.ok) file = (await res.json()).tournaments || [];
+    } catch { /* the stored ones alone */ }
+    const over = new Map(st.items.map(t => [t.id, t]));
+    const merged = file.filter(t => !st.hidden.includes(t.id)).map(t => over.get(t.id) || t);
+    const fileIds = new Set(file.map(t => t.id));
+    st.items.forEach(t => { if (!fileIds.has(t.id) && !st.hidden.includes(t.id)) merged.push(t); });
+    return json(JSON.stringify({ tournaments: merged }));
+  }
+  if (request.method === "POST") {
+    if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    if (!Array.isArray(b.items)) return fail("No tournaments given.", 400);
+    const s = (v, n) => String(v ?? "").trim().slice(0, n);
+    const items = b.items.slice(0, 200).map(t => ({
+      id: cleanId(t.id), name: s(t.name, 160), location: s(t.location, 100), venue: s(t.venue, 140), venue_address: s(t.venue_address, 300),
+      start: s(t.start, 10), end: s(t.end, 10), status: s(t.status, 20) || "auto", prize_money: s(t.prize_money, 60), level: s(t.level, 60),
+      organiser: s(t.organiser, 200), promoters: s(t.promoters, 200), contact: s(t.contact, 120),
+      entry_deadline: s(t.entry_deadline, 16), withdrawal_deadline: s(t.withdrawal_deadline, 16),
+      description: s(t.description, 5000), how_to_enter: s(t.how_to_enter, 3000),
+      divisions: (Array.isArray(t.divisions) ? t.divisions : []).slice(0, 30).map(d => s(d, 60)).filter(Boolean),
+      referees: (Array.isArray(t.referees) ? t.referees : []).slice(0, 60).map(r => ({ name: s(r.name, 80), role: s(r.role, 60) })).filter(r => r.name),
+      entries: Array.isArray(t.entries) ? t.entries.slice(0, 500) : [],
+      logo: /^(\/api\/respic\?id=[a-z0-9]+|https?:\/\/|images\/|\/images\/)/i.test(s(t.logo, 300)) ? s(t.logo, 300) : "",
+    })).filter(t => t.id && t.name);
+    const hidden = (Array.isArray(b.hidden) ? b.hidden : []).slice(0, 200).map(cleanId).filter(Boolean);
+    await env.DRAW_KV.put("tournaments:edits", JSON.stringify({ items, hidden, updated: Date.now() }));
+    return json(JSON.stringify({ ok: true, items, hidden }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
 async function feedbackRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
@@ -621,6 +674,7 @@ export default {
     if (path === "/api/feedback") return feedbackRoute(request, env);
     if (path === "/api/entries") return entriesRoute(request, env);
     if (path === "/api/results") return resultsRoute(request, env);
+    if (path === "/api/tournaments") return tournamentsRoute(request, env);
     if (path === "/api/rankings") return rankingsRoute(request, env);
     if (path === "/api/sheet") return sheetRoute(request, env);
     if (path === "/api/respic") return respicRoute(request, env);

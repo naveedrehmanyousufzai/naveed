@@ -79,7 +79,7 @@ async function loadSchedule() {
     if (res.ok) schedules = (await res.json()).schedules || [];
   } catch { /* keep the last ones */ }
   try {
-    const t = await (await fetch('content/tournaments.json')).json();
+    const t = await (await fetch('/api/tournaments', { cache: 'no-store' }).then(r => r.ok ? r : fetch('content/tournaments.json'))).json();
     tournamentLogos = {};
     (t.tournaments || []).forEach(x => { if (x.logo) tournamentLogos[x.id] = x.logo; });
   } catch { /* optional */ }

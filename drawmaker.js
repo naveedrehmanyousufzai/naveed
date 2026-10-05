@@ -320,7 +320,7 @@ $('dmLogo').addEventListener('change', e => {
    tournament chosen. */
 async function loadTournaments() {
   try {
-    const res = await fetch('content/tournaments.json');
+    const res = await fetch('/api/tournaments', { cache: 'no-store' }).then(r => r.ok ? r : fetch('content/tournaments.json'));
     tournaments = (await res.json()).tournaments || [];
   } catch { tournaments = []; }
   const sel = $('dmTournament');

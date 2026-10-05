@@ -6,6 +6,7 @@
 const { esc, status, statusTag, fmtRange } = NR;
 let all = [];
 let filter = 'All';
+const adm = () => !!(window.TournamentsAdmin && TournamentsAdmin.on);
 
 function renderFilters() {
   const box = document.getElementById('statusFilters');
@@ -21,9 +22,9 @@ function renderFilters() {
 function renderTable() {
   const root = document.getElementById('tournaments-root');
   const rows = all.filter(t => filter === 'All' || status(t) === filter);
-  if (!rows.length) { root.innerHTML = '<p class="pad__empty">No tournaments here yet.</p>'; return; }
+  if (!rows.length) { root.innerHTML = (adm() ? '<p><button class="btn btn--solid" id="tadAdd">Add tournament</button></p>' : '') + '<p class="pad__empty">No tournaments here yet.</p>'; return; }
 
-  root.innerHTML = `
+  root.innerHTML = `${adm() ? '<p><button class="btn btn--solid" id="tadAdd">Add tournament</button></p>' : ''}
   <div class="tt">
     <div class="tt__row tt__row--head">
       <span>Tournament</span><span>Divisions</span><span>Date</span><span>Prize money</span><span>Status</span>
@@ -33,6 +34,7 @@ function renderTable() {
       <span class="tt__name" data-l="Tournament">
         <strong>${esc(t.name)}</strong>
         <small>${esc(t.location)}</small>
+        ${adm() ? `<span class="tt__admin"><button class="ent-edit" data-tedit="${esc(t.id)}" aria-label="Edit">\u270e</button><button class="ent-del" data-tdel="${esc(t.id)}" aria-label="Delete">\u00d7</button></span>` : ''}
       </span>
       <span class="tt__divs" data-l="Divisions">${(t.divisions || []).map(d => `<i>${esc(d)}</i>`).join('') || '—'}</span>
       <span class="tt__date" data-l="Date">${esc(fmtRange(t.start, t.end))}</span>
@@ -49,9 +51,19 @@ document.getElementById('statusFilters').addEventListener('click', e => {
   renderFilters(); renderTable();
 });
 
-NR.tournaments().then(list => {
-  /* Newest first among finished ones, otherwise by start date */
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('button'); if (!b || !adm()) return;
+  if (b.id === 'tadAdd') { TournamentsAdmin.add(all.map(t => t.id)); return; }
+  const id = b.dataset.tedit || b.dataset.tdel; if (!id) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const t = all.find(x => x.id === id); if (!t) return;
+  if (b.dataset.tedit) TournamentsAdmin.edit(t);
+  else { try { if (await TournamentsAdmin.remove(t)) location.reload(); } catch (err) { alert(err.message); } }
+}, true);
+
+NR.tournaments().then(async list => {
   all = list;
+  await TournamentsAdmin.ready;
   renderFilters(); renderTable();
 }).catch(() => {
   document.getElementById('tournaments-root').innerHTML =

@@ -126,7 +126,7 @@
   let tournamentsCache = null;
   async function tournamentOf(id) {
     if (!tournamentsCache) {
-      try { tournamentsCache = (await (await fetch('content/tournaments.json')).json()).tournaments || []; }
+      try { tournamentsCache = (await (await fetch('/api/tournaments', { cache: 'no-store' }).then(r => r.ok ? r : fetch('content/tournaments.json'))).json()).tournaments || []; }
       catch { tournamentsCache = []; }
     }
     return tournamentsCache.find(t => t.id === id) || null;

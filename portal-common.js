@@ -93,12 +93,21 @@
     return { ...base, categories, players: (base.players || []).filter(p => !over.has(p.category)).concat(extra), imported: over };
   }
 
+  /* The file's tournaments with the organiser's changes made on the page */
+  async function tournamentData() {
+    try {
+      const r = await fetch('/api/tournaments', { cache: 'no-store' });
+      if (r.ok) { const d = await r.json(); if (Array.isArray(d.tournaments)) return d; }
+    } catch { /* fall back to the file */ }
+    return load('tournaments');
+  }
+
   async function tournaments() {
-    const d = await load('tournaments');
+    const d = await tournamentData();
     return (d.tournaments || []).slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
   }
 
   const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  window.NR = { esc, day, fmtDate, fmtRange, fmtStamp, status, statusTag, STATUSES, load, loadRankings, tournaments, slug };
+  window.NR = { esc, day, fmtDate, fmtRange, fmtStamp, status, statusTag, STATUSES, load, loadRankings, tournamentData, tournaments, slug };
 })();

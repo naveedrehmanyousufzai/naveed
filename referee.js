@@ -872,7 +872,7 @@ async function loadMine() {
   /* A tournament deleted from the site must disappear from here too. */
   let orphans = [];
   try {
-    const tr = await fetch('/content/tournaments.json', { cache: 'no-store' });
+    const tr = await fetch('/api/tournaments', { cache: 'no-store' }).then(r => r.ok ? r : fetch('/content/tournaments.json', { cache: 'no-store' }));
     if (tr.ok) {
       const live = new Set(((await tr.json()).tournaments || []).map(t => t.id));
       const tid = s => s.tournamentId || String(s.id || '').split('__')[0];
