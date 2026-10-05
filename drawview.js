@@ -35,8 +35,10 @@
     for (let i = 0; i < slots.length; i += 2) pairs.push([slots[i], slots[i + 1]]);
 
     const line = s => {
-      if (!s || !s.player) return `<div class="slot slot--empty">Bye</div>`;
-      return `<div class="slot">
+      const at = s && s.position ? ` data-slot="${s.position - 1}"` : '';
+      if (s && s.open) return `<div class="slot slot--empty"${at}>${s.spot ? `<span class="slot__seed">[${esc(s.spot)}]</span> ` : ''}To be decided</div>`;
+      if (!s || !s.player) return `<div class="slot slot--empty"${at}>Bye</div>`;
+      return `<div class="slot"${at}>
         <span class="slot__name">${esc(s.player.name)}</span>
         ${s.player.club ? `<span class="slot__club">${esc(s.player.club)}</span>` : ''}
         ${s.seed ? `<span class="slot__seed">[${esc(s.seed)}]</span>` : ''}

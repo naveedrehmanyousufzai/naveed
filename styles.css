@@ -1747,3 +1747,7 @@ a.tt__row strong { text-decoration: none; }
 .tad__cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-bottom: 10px; }
 .tad__cats label { display: flex; gap: 6px; align-items: center; font-size: var(--t-sm); }
 .tad textarea { width: 100%; font: inherit; }
+
+/* 46. Places in a bracket you can click in the draw maker */
+#dmPreview [data-slot] { cursor: pointer; }
+#dmPreview [data-slot]:hover { outline: 1px solid var(--gold); }

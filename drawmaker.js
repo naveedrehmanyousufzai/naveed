@@ -126,6 +126,86 @@ function playersFor(label) {
   });
 }
 
+/* ---------- An empty bracket, filled in by hand ---------- */
+function blankDraws() {
+  const tournament = tName();
+  const tournamentId = $('dmTournament').value;
+  if (!tournamentId) { say('Choose the tournament first.', 'bad'); return; }
+  const labels = ticked();
+  if (!labels.length) { say('Tick the category this bracket is for.', 'bad'); return; }
+  const size = Number($('dmSize').value);
+  const made = {};
+  for (const label of labels) {
+    const draw = DrawLogic.blankKnockout(size);
+    draw.tournament = tournament; draw.tournamentId = tournamentId; draw.event = label;
+    draw.made = Date.now(); draw.madeBy = sessionStorage.getItem(NAME_KEY) || '';
+    made[label] = { current: draw, sched: { drawId: String(draw.made), tournamentId, tournament, event: label, logo, matches: DrawLogic.matchesFromDraw(draw) } };
+  }
+  Object.keys(drafts).forEach(k => delete drafts[k]);
+  Object.assign(drafts, made);
+  showDraft(labels[0]);
+  ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = false; });
+  $('dmRedraw').hidden = true;      // "draw again" makes no sense for an empty bracket
+  say('Empty bracket ready. Click any place to type a player in, then set courts and times below.', 'good');
+}
+
+/* Rebuild the matches after a place changed, keeping court, time and referee. */
+function refreshMatches() {
+  const old = new Map((sched.matches || []).map(m => [m.id, m]));
+  current.byes = current.slots.filter(s => !s.open && !s.player).length;
+  current.made = Date.now(); sched.drawId = String(current.made);
+  sched.matches = DrawLogic.matchesFromDraw(current).map(m => {
+    const o = old.get(m.id);
+    if (o) { m.court = o.court || ''; m.time = o.time || ''; m.referee = o.referee || ''; }
+    return m;
+  });
+  DrawView.render($('dmPreview'), current, sched);
+  renderMatches();
+}
+
+function openSlotEditor(i) {
+  if (!current || !current.slots) return;
+  const s = current.slots[i], p = s.player || {};
+  document.getElementById('dmSlotEd')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'dmSlotEd'; ov.className = 'mm no-print';
+  ov.innerHTML = `<form class="mm__card">
+    <button type="button" class="mm__x" data-close aria-label="Close">\u00d7</button>
+    <p class="mm__tour">Place ${i + 1}${s.spot ? ' (seed spot ' + s.spot + ')' : ''}</p>
+    <label class="pad__field"><span>Player name</span><input class="pad__name" name="name" value="${stamp(p.name || '')}" required></label>
+    <label class="pad__field"><span>Association / club</span><input class="pad__name" name="club" value="${stamp(p.club || '')}"></label>
+    <label class="pad__field"><span>Country (optional)</span><input class="pad__name" name="country" value="${stamp(p.country || '')}"></label>
+    <label class="pad__field"><span>Seed (leave empty if unseeded)</span><input class="pad__name" name="seed" type="number" min="1" value="${stamp(s.seed || '')}"></label>
+    <button class="btn btn--solid" type="submit">Save</button>
+    <button class="btn btn--ghost" type="button" data-act="bye">Mark as bye</button>
+    <button class="btn btn--ghost" type="button" data-act="clear">Clear</button>
+  </form>`;
+  document.body.appendChild(ov);
+  const apply = fn => { fn(); ov.remove(); refreshMatches(); };
+  ov.addEventListener('click', ev => {
+    if (ev.target === ov || ev.target.closest('[data-close]')) ov.remove();
+    const act = ev.target.dataset && ev.target.dataset.act;
+    if (act === 'bye') apply(() => { s.player = null; s.seed = null; s.open = false; });
+    if (act === 'clear') apply(() => { s.player = null; s.seed = null; s.open = true; });
+  });
+  ov.querySelector('form').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const f = ev.target.elements;
+    apply(() => {
+      s.player = { name: f.name.value.trim(), club: f.club.value.trim(), country: f.country.value.trim() };
+      s.seed = Number(f.seed.value) > 0 ? Number(f.seed.value) : null;
+      if (s.seed) s.player.seed = s.seed;
+      s.open = false;
+    });
+  });
+  ov.querySelector('[name=name]').focus();
+}
+$('dmPreview').addEventListener('click', ev => {
+  const slot = ev.target.closest('[data-slot]');
+  if (slot && current && current.slots) { ev.stopPropagation(); openSlotEditor(Number(slot.dataset.slot)); }
+}, true);
+$('dmBlank').addEventListener('click', blankDraws);
+
 /* ---------- Making the draws ---------- */
 function generate() {
   const tournament = tName();

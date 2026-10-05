@@ -142,6 +142,17 @@ function buildKnockout(entries, opts = {}) {
   };
 }
 
+/* An empty bracket: every place open, to be filled in by hand.
+   seedSpots marks the places a seed would normally take (positions listed by seed number). */
+function blankKnockout(size) {
+  const order = seedOrder(size);
+  return {
+    format: 'knockout', size, byes: 0, blank: true,
+    slots: order.map((seed, i) => ({ position: i + 1, player: null, seed: null, open: true, spot: seed <= size / 2 ? seed : null })),
+    rounds: knockoutRounds(size)
+  };
+}
+
 /* How strong is the player this slot will face in round one?
    Lower number = stronger opponent. Used only to park byes sensibly. */
 function opponentSeedRank(index, order, size) {
@@ -285,6 +296,7 @@ function matchesFromDraw(draw) {
       if (ri === 0) {
         m.p1 = P(draw.slots[mi * 2].player);
         m.p2 = P(draw.slots[mi * 2 + 1].player);
+        m.open = !!(draw.slots[mi * 2].open || draw.slots[mi * 2 + 1].open);
       }
       m.ref = { ri, mi };
       out.push(m);
@@ -293,7 +305,7 @@ function matchesFromDraw(draw) {
 
   /* A bye is a win without playing: move that player on. */
   for (const m of out.filter(x => x.ref.ri === 0)) {
-    if ((m.p1 && m.p2) || (!m.p1 && !m.p2)) continue;
+    if (m.open || (m.p1 && m.p2) || (!m.p1 && !m.p2)) continue;
     m.status = 'bye';
     m.winner = m.p1 ? 0 : 1;
     const next = out.find(x => x.ref.ri === 1 && x.ref.mi === Math.floor(m.ref.mi / 2));
@@ -306,7 +318,7 @@ function matchesFromDraw(draw) {
    and shipped. */
 const DrawLogic = {
   shuffle, drawSizeFor, seedOrder, seedBlocks,
-  buildKnockout, buildGroups, roundRobinFixtures, standings, matchesFromDraw
+  buildKnockout, blankKnockout, buildGroups, roundRobinFixtures, standings, matchesFromDraw
 };
 if (typeof window !== 'undefined') window.DrawLogic = DrawLogic;
 if (typeof module !== 'undefined' && module.exports) module.exports = DrawLogic;
