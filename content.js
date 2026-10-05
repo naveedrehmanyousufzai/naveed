@@ -65,13 +65,25 @@ async function renderNews() {
   });
 }
 
-/* ---------- Results table + year filter ---------- */
+/* ---------- Results table + year filter ----------
+   The file in /content plus anything added on the site (kept on the server). */
+const MONTHS_ = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const monthOf = r => { const m = MONTHS_.findIndex(x => String(r.dates || '').toLowerCase().includes(x)); return m + 1; };
+window.resultsAdded = [];
+
 async function renderResults() {
   const root = document.getElementById('results-root');
   if (!root) return;
   const d = await load('results');
+  try {
+    const res = await fetch('/api/results', { cache: 'no-store' });
+    if (res.ok) window.resultsAdded = (await res.json()).items || [];
+  } catch { /* offline: the file alone */ }
 
-  const years = [...new Set(d.items.map(r => r.year))].sort().reverse();
+  const items = d.items.map((r, i) => ({ ...r, _o: i })).concat(window.resultsAdded.map((r, i) => ({ ...r, _o: 1000 + i })));
+  items.sort((a, b) => String(b.year).localeCompare(String(a.year)) || monthOf(b) - monthOf(a) || a._o - b._o);
+  const years = [...new Set(items.map(r => r.year))].sort().reverse();
+  const admin = !!window.ResultsAdmin && ResultsAdmin.on;
 
   root.innerHTML = `
     <div class="years">
@@ -83,15 +95,16 @@ async function renderResults() {
         <tr><th>Year</th><th>Tournament</th><th>Venue</th><th>Result</th></tr>
       </thead>
       <tbody>
-        ${d.items.map(r => `
+        ${items.map(r => `
         <tr data-year="${esc(r.year)}">
           <td data-col="year">${esc(r.year)}</td>
-          <td data-col="tournament">${esc(r.tournament)}</td>
+          <td data-col="tournament">${esc(r.tournament)}${(r.dates || r.category) ? `<small class="res__sub">${esc([r.dates, r.category].filter(Boolean).join(' \u00b7 '))}</small>` : ''}</td>
           <td data-col="venue">${esc(r.venue)}</td>
-          <td data-col="result"${r.win ? ' class="win"' : ''}>${esc(r.result)}</td>
+          <td data-col="result"${r.win ? ' class="win"' : ''}>${esc(r.result)}${admin && r.id ? ` <button class="ent-del" data-rdel="${esc(r.id)}" aria-label="Remove">\u00d7</button>` : ''}</td>
         </tr>`).join('')}
       </tbody>
     </table>`;
+  if (window.ResultsAdmin) ResultsAdmin.afterRender();
 }
 
 /* ---------- Store grid ---------- */

@@ -1715,3 +1715,11 @@ a.tt__row strong { text-decoration: none; }
 .mm__win { display: flex; flex-direction: column; gap: 8px; }
 .mm__win label { display: flex; gap: 10px; align-items: center; font-weight: 600; }
 .mm__win input { width: 20px; height: 20px; accent-color: var(--gold); }
+
+/* 42. Results admin */
+.res__sub { display: block; font-size: var(--t-xs); color: var(--ash); font-weight: 400; margin-top: 2px; }
+.res-admin { margin: 0 0 24px; }
+.res-admin__bar { display: flex; flex-wrap: wrap; gap: 10px; }
+.res-admin__box { border: 1px solid var(--hairline); background: var(--card); padding: 16px; margin-top: 14px; }
+.res-admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.res-admin__box[hidden] { display: none !important; }

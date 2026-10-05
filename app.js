@@ -30,19 +30,17 @@ if (filterBar) {
   });
 }
 
-// Results year filter
-const yearBar = document.querySelector('.years');
-if (yearBar) {
-  yearBar.addEventListener('click', e => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    yearBar.querySelectorAll('button').forEach(b => b.classList.remove('is-active'));
-    btn.classList.add('is-active');
-    const yr = btn.dataset.year;
-    document.querySelectorAll('.table tbody tr').forEach(r => {
-      r.style.display = (yr === 'all' || r.dataset.year === yr) ? '' : 'none';
-    });
+// Results year filter (delegated, so it survives the table being redrawn)
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.years button');
+  if (!btn) return;
+  const bar = btn.closest('.years');
+  bar.querySelectorAll('button').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  const yr = btn.dataset.year;
+  document.querySelectorAll('#results-root .table tbody tr, .table tbody tr[data-year]').forEach(r => {
+    r.style.display = (yr === 'all' || r.dataset.year === yr) ? '' : 'none';
   });
-}
+});
 
 };

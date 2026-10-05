@@ -431,6 +431,40 @@ async function entriesRoute(request, env) {
   return fail("Method not allowed.", 405);
 }
 
+/* ---------- Career results added from the site ----------
+   GET  /api/results            public, {items:[...]}
+   POST /api/results            organiser only, {items:[...]} replaces the list */
+async function resultsRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+
+  if (request.method === "GET") {
+    const raw = await env.DRAW_KV.get("career:results");
+    return json(JSON.stringify({ items: raw ? (JSON.parse(raw).items || []) : [] }));
+  }
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    let b;
+    try { b = JSON.parse(await request.text()); } catch { return fail("Invalid JSON.", 400); }
+    if (!Array.isArray(b.items)) return fail("No items given.", 400);
+    const s = (v, n) => String(v || "").trim().slice(0, n);
+    const items = b.items.slice(0, 1000).map(r => ({
+      id: s(r.id, 30) || Math.random().toString(36).slice(2, 10),
+      year: s(r.year, 4),
+      tournament: s(r.tournament, 140),
+      dates: s(r.dates, 40),
+      category: s(r.category, 40),
+      venue: s(r.venue, 100),
+      result: s(r.result, 80),
+      win: !!r.win,
+    })).filter(r => r.tournament);
+    await env.DRAW_KV.put("career:results", JSON.stringify({ items, updated: Date.now() }));
+    return json(JSON.stringify({ ok: true, items }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
 async function feedbackRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
@@ -500,6 +534,7 @@ export default {
     if (path === "/api/result") return resultRoute(request, env);
     if (path === "/api/feedback") return feedbackRoute(request, env);
     if (path === "/api/entries") return entriesRoute(request, env);
+    if (path === "/api/results") return resultsRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */
     return env.ASSETS.fetch(request);
