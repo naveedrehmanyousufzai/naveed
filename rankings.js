@@ -15,7 +15,8 @@ function renderTable() {
   const root = document.getElementById('rankings-root');
   const rows = data.players.filter(p => p.category === cat)
     .sort((a, b) => Number(a.rank) - Number(b.rank));
-  if (!rows.length) { root.innerHTML = '<p class="pad__empty">No ranking for this category yet.</p>'; return; }
+  window.rankingsRows = rows;
+  if (!rows.length) { root.innerHTML = '<p class="pad__empty">No ranking for this category yet.</p>'; if (window.rankingsAfterRender) window.rankingsAfterRender(cat, rows); return; }
 
   root.innerHTML = `
   <h2 class="rk-title">${esc(cat)}</h2>
@@ -30,6 +31,7 @@ function renderTable() {
       </tr>`).join('')}
     </tbody>
   </table>`;
+  if (window.rankingsAfterRender) window.rankingsAfterRender(cat, rows);
 }
 
 document.getElementById('catFilters').addEventListener('click', e => {

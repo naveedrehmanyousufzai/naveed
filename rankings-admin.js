@@ -197,8 +197,69 @@
     } catch (err) { st.textContent = err.message; }
   });
 
+  /* ---------- Edit on the page ----------
+     Any change to a category saves that whole category as imported, so it replaces the file's copy. */
+  let on = false;
+  const field = (f, v, w) => `<input class="pad__name" data-f="${f}" value="${e(v)}" style="width:${w}">`;
+  function editRow(r, i) {
+    return `<td>${field('rank', r.rank, '56px')}</td><td>${field('name', r.name, '100%')}</td><td>${field('club', r.club, '100%')}</td><td>${field('points', r.points, '70px')}</td>
+      <td style="white-space:nowrap"><button class="btn btn--solid" data-rksave="${i}">Save</button> <button class="btn btn--ghost" data-rkcancel="1">Cancel</button></td>`;
+  }
+  window.rankingsAfterRender = function (cat, rows) {
+    if (!on) return;
+    const root = $('rankings-root');
+    let table = root.querySelector('table');
+    if (!table) {
+      root.innerHTML = '<h2 class="rk-title">' + e(cat) + '</h2><p class="pad__empty">No ranking for this category yet.</p>'
+        + '<table class="table rk-table"><thead><tr><th>Rank</th><th>Player</th><th>Club</th><th>Points</th><th></th></tr></thead><tbody></tbody></table>';
+      table = root.querySelector('table');
+    } else {
+      table.querySelector('thead tr').insertAdjacentHTML('beforeend', '<th></th>');
+      table.querySelectorAll('tbody tr').forEach((tr, i) => tr.insertAdjacentHTML('beforeend',
+        `<td style="white-space:nowrap"><button class="ent-edit" data-rkedit="${i}" aria-label="Edit">\u270e</button><button class="ent-del" data-rkdel="${i}" aria-label="Remove">\u00d7</button></td>`));
+    }
+    root.insertAdjacentHTML('beforeend', '<p><button class="btn btn--ghost" id="rkAddRow">Add player</button> <span class="pad__publish-state" id="rkEditState"></span></p>');
+  };
+  async function saveCategory(cat, list) {
+    const clean = list.map(p => ({ category: cat, rank: String(p.rank || '').trim(), name: String(p.name || '').trim(), club: String(p.club || '').trim(), points: String(p.points || '').trim() }))
+      .filter(p => p.name)
+      .sort((x, y) => (Number(x.rank) || 9999) - (Number(y.rank) || 9999));
+    const keep = (await existing()).filter(p => p.category !== cat);
+    await save(keep.concat(clean));
+    await window.reloadRankings();
+  }
+  const curCat = () => ((document.querySelector('#catFilters .chip--on') || {}).dataset || {}).c || '';
+  const read = tr => Object.fromEntries([...tr.querySelectorAll('[data-f]')].map(i => [i.dataset.f, i.value]));
+  const fail = err => { const s = $('rkEditState'); if (s) s.textContent = err.message; else alert(err.message); };
+
+  document.addEventListener('click', async ev => {
+    if (!on) return;
+    const t = ev.target.closest('button'); if (!t) return;
+    const rows = (window.rankingsRows || []).map(p => ({ ...p }));
+    const cat = curCat();
+    if (t.dataset.rkedit !== undefined) {
+      const tr = t.closest('tr'); tr.innerHTML = editRow(rows[Number(t.dataset.rkedit)], t.dataset.rkedit);
+    } else if (t.dataset.rkcancel) {
+      window.reloadRankings();
+    } else if (t.id === 'rkAddRow') {
+      const tb = document.querySelector('#rankings-root tbody');
+      tb.insertAdjacentHTML('beforeend', '<tr>' + editRow({ rank: String(rows.length + 1), name: '', club: '', points: '' }, 'new') + '</tr>');
+      t.hidden = true; tb.lastElementChild.querySelector('[data-f=name]').focus();
+    } else if (t.dataset.rksave !== undefined) {
+      const v = read(t.closest('tr'));
+      if (!String(v.name).trim()) return fail(new Error('Enter a name.'));
+      if (t.dataset.rksave === 'new') rows.push(v); else rows[Number(t.dataset.rksave)] = v;
+      try { await saveCategory(cat, rows); } catch (err) { fail(err); }
+    } else if (t.dataset.rkdel !== undefined) {
+      const i = Number(t.dataset.rkdel);
+      if (!confirm('Remove ' + (rows[i] && rows[i].name) + ' from ' + cat + '?')) return;
+      rows.splice(i, 1);
+      try { await saveCategory(cat, rows); } catch (err) { fail(err); }
+    }
+  });
+
   async function init() {
-    if (await check()) { build(); return; }
+    if (await check()) { on = true; build(); if (window.reloadRankings) window.reloadRankings(); return; }
     if (location.search.includes('admin')) {
       root.innerHTML = `<form class="res-admin__box" id="rkLogin"><div class="res-admin__grid"><label class="pad__field"><span>Admin password</span><input class="pad__name" type="password" name="pw" required></label></div><button class="btn btn--solid" type="submit">Sign in</button> <span class="pad__publish-state" id="rkLoginState"></span></form>`;
       $('rkLogin').addEventListener('submit', async ev => {
