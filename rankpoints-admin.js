@@ -110,7 +110,7 @@
     </div>
     <div class="res-admin__box">
       <h3>3 · Add results from a spreadsheet</h3>
-      <p class="pad__intro">One sheet (tab) per category. Column A = Name, column B = Association, then one column per tournament. Put the tournament name, its date in brackets and its level in the column heading, e.g. “1st ABC National Junior Squash Championship 2025 (October 7 2025) Silver Event”. Each cell is how far the player got: <b>Winner, Runner Up, Semi Final, Quarter Final, Round of 16, Round of 32, Round of 64</b>.</p>
+      <p class="pad__intro">One sheet (tab) per category. Columns: Name, Association, then one column per tournament. Either use one sheet per category, or add a <b>Category</b> column (any position) to put all categories on one sheet. Put the tournament name, its date in brackets and its level in the column heading, e.g. “1st ABC National Junior Squash Championship 2025 (October 7 2025) Silver Event”. Each cell is how far the player got: <b>Winner, Runner Up, Semi Final, Quarter Final, Round of 16, Round of 32, Round of 64</b>.</p>
       <label class="btn btn--solid" for="rpFile" style="cursor:pointer">Choose Excel / CSV file</label>
       <input type="file" id="rpFile" accept=".xlsx,.xls,.csv" hidden>
       <button class="btn btn--ghost" id="rpTemplate" type="button">Download a template</button>
@@ -215,27 +215,44 @@
     return { name, level, date };
   }
 
+  /* One sheet -> one or more groups (a group = one category). The category comes from a
+     "Category" column if there is one, otherwise from the sheet's name. */
   function parseSheet(name, rows) {
-    const head = rows[0] || [];
-    const cols = [];
-    for (let j = 2; j < head.length; j++) {
-      if (!String(head[j] || '').trim()) continue;
-      const h = parseHeader(head[j]);
-      const body = rows.slice(1).filter(r => String(r[0] || '').trim());
-      const maxRound = Math.max(0, ...body.map(r => { const m = String(r[j] || '').trim().toLowerCase().match(/^(?:round|rd|r)\s*(\d+)$/); return m ? Number(m[1]) : 0; }));
-      const results = [];
-      const unknown = new Set();
-      body.forEach(r => {
-        const cell = String(r[j] ?? '').trim();
-        if (!cell) return;
-        const pos = posFromText(cell, maxRound);
-        if (pos) results.push({ name: String(r[0]).trim(), club: String(r[1] || '').trim(), pos });
-        else unknown.add(cell);
-      });
-      results.sort((x, y) => x.pos - y.pos || x.name.localeCompare(y.name));
-      cols.push({ ...h, results, unknown: [...unknown] });
-    }
-    return { sheet: name, category: normCat(name), cols };
+    const head = (rows[0] || []).map(h => String(h ?? ''));
+    const find = re => head.findIndex(h => re.test(h.trim()));
+    let ci = find(/^(category|categories|division|event|class)$/i);
+    let ni = find(/^(names?|players?|athletes?)$/i); if (ni < 0) ni = 0;
+    let ai = find(/^(association|associations|club|clubs|team|province|dept|department)$/i); if (ai < 0) ai = ni === 0 ? 1 : 0;
+    const tcols = [];
+    head.forEach((h, j) => { if (j !== ci && j !== ni && j !== ai && h.trim()) tcols.push(j); });
+    const body = rows.slice(1).filter(r => String(r[ni] ?? '').trim());
+    const byCat = new Map();
+    body.forEach(r => {
+      const raw = ci >= 0 ? String(r[ci] ?? '').trim() : '';
+      const cat = ci >= 0 ? (normCat(raw) || raw) : normCat(name);
+      if (!byCat.has(cat)) byCat.set(cat, []);
+      byCat.get(cat).push(r);
+    });
+    const groups = [];
+    byCat.forEach((list, cat) => {
+      const cols = tcols.map(j => {
+        const h = parseHeader(head[j]);
+        /* "Round N" depends on the size of this category's draw, so it is read per category */
+        const maxRound = Math.max(0, ...list.map(r => { const m = String(r[j] ?? '').trim().toLowerCase().match(/^(?:round|rd|r)\s*(\d+)$/); return m ? Number(m[1]) : 0; }));
+        const results = [], unknown = new Set();
+        list.forEach(r => {
+          const cell = String(r[j] ?? '').trim();
+          if (!cell) return;
+          const pos = posFromText(cell, maxRound);
+          if (pos) results.push({ name: String(r[ni]).trim(), club: String(r[ai] ?? '').trim(), pos });
+          else unknown.add(cell);
+        });
+        results.sort((x, y) => x.pos - y.pos || x.name.localeCompare(y.name));
+        return { ...h, results, unknown: [...unknown] };
+      }).filter(c => c.results.length || c.unknown.length);
+      if (cols.length) groups.push({ sheet: name, category: cat, cols, rows: list.length });
+    });
+    return groups;
   }
 
   async function readFile(file) {
@@ -244,7 +261,7 @@
     try {
       await script(XLSX_URL);
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-      IMP = { sheets: wb.SheetNames.map(n => parseSheet(n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', blankrows: false }))).filter(s => s.cols.length) };
+      IMP = { sheets: wb.SheetNames.flatMap(n => parseSheet(n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', blankrows: false }))) };
       if (!IMP.sheets.length) { box.innerHTML = '<p class="pad__empty">No tournament columns found. Column A should be Name, column B Association, and the tournaments from column C.</p>'; return; }
       renderImport();
     } catch (err) { box.innerHTML = '<p class="pad__empty">Could not read the file: ' + e(err.message) + '</p>'; }
@@ -256,7 +273,7 @@
     const lvAll = [...new Set(lv.concat(['Bronze', 'Silver', 'Gold', 'Diamond']))];
     box.innerHTML = IMP.sheets.map((s, si) => `
       <div class="rp-imp">
-        <h4>Sheet “${e(s.sheet)}” → category
+        <h4>${e(s.sheet)} · ${s.rows} players → category
           <select class="pad__name" data-impcat="${si}"><option value="">— choose —</option>${[...new Set(CATS.concat(s.category ? [s.category] : []))].map(c => `<option${c === s.category ? ' selected' : ''}>${e(c)}</option>`).join('')}</select></h4>
         ${s.cols.map((c, ci) => `<div class="rp-imp__col">
           <strong>${e(c.name)}</strong>
@@ -274,7 +291,8 @@
       const tid = 'imp-' + slug(c.name);
       S.tlevels[tid] = c.level;
       const id = tid + '-' + slug(s.category);
-      const ev = { id, tid, tournament: c.name, date: c.date, division: s.sheet, category: s.category, include: true, manual: true, note: 'From spreadsheet', results: c.results };
+      if (!c.results.length) return;
+      const ev = { id, tid, tournament: c.name, date: c.date, division: s.category, category: s.category, include: true, manual: true, note: 'From spreadsheet', results: c.results };
       const i = S.events.findIndex(x => x.id === id);
       if (i >= 0) S.events[i] = ev; else S.events.push(ev);
       n++;
@@ -305,7 +323,12 @@
     const t = ev.target;
     if (t.id === 'rpFile') { if (t.files[0]) readFile(t.files[0]); t.value = ''; return; }
     if (t.dataset.impcat !== undefined) { IMP.sheets[Number(t.dataset.impcat)].category = t.value; renderImport(); return; }
-    if (t.dataset.implvl !== undefined) { const [si, ci] = t.dataset.implvl.split('.').map(Number); IMP.sheets[si].cols[ci].level = t.value; renderImport(); return; }
+    if (t.dataset.implvl !== undefined) {
+      const [si, ci] = t.dataset.implvl.split('.').map(Number);
+      const nm = IMP.sheets[si].cols[ci].name;
+      IMP.sheets.forEach(g => g.cols.forEach(c => { if (c.name === nm) c.level = t.value; }));   // same tournament, same level
+      renderImport(); return;
+    }
     if (t.dataset.prize !== undefined) {
       S.prize = S.prize || {}; S.prize[t.dataset.prize] = Number(t.value) || '';
       if (Number(t.value) > 0) { S.tlevels[t.dataset.prize] = levelFromPrize(Number(t.value)); ensureLevel(S.tlevels[t.dataset.prize]); }
