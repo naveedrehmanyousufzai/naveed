@@ -1763,3 +1763,6 @@ a.tt__row strong { text-decoration: none; }
 .mm__pts { display: flex; justify-content: center; align-items: baseline; gap: 14px; font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 44px; color: var(--gold-ink); margin: 6px 0; }
 .mm__pts span { color: var(--ash); }
 .mm__live p { margin: 2px 0; color: var(--ash); font-size: var(--t-sm); }
+
+.sheet-login { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--hairline); padding: 14px; margin-bottom: 16px; }
+.sheet-login .pad__name { max-width: 220px; }

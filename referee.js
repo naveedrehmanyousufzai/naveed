@@ -388,6 +388,15 @@ function padArchive() {
       finished: Date.now()
     });
     localStorage.setItem(PAD_STORE, JSON.stringify(all.slice(0, 200)));
+    /* and a copy on the server, so the organiser can open it from any device */
+    const pw = sessionStorage.getItem(PASS_KEY);
+    if (pw) {
+      fetch('/api/scoresheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': pw },
+        body: JSON.stringify(all[0])
+      }).catch(() => { /* the organiser's page re-sends it from this device later */ });
+    }
   } catch (err) {
     console.warn('Could not save the scoresheet on this device:', err);
   }

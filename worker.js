@@ -561,6 +561,69 @@ async function rankingsRoute(request, env) {
   return fail("Method not allowed.", 405);
 }
 
+
+/* ---------- Scoresheets: finished matches, kept on the server so the organiser
+   can open them from any device.
+   POST   /api/scoresheets        any signed-in referee, the full record
+   GET    /api/scoresheets        organiser, the list (summaries)
+   GET    /api/scoresheets?id=x   organiser, one full record
+   DELETE /api/scoresheets?id=x   organiser ---------- */
+async function scoresheetsRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  const url = new URL(request.url);
+  const cid = s => String(s || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env);
+    if (denied) return denied;
+    const text = await request.text();
+    if (text.length > 600000) return fail("That scoresheet is too large.", 413);
+    let r;
+    try { r = JSON.parse(text); } catch { return fail("Invalid JSON.", 400); }
+    const id = cid(r.id);
+    if (!id) return fail("No id.", 400);
+    const p = r.players || [];
+    const meta = {
+      id,
+      a: String((p[0] && p[0].name) || "").slice(0, 60), b: String((p[1] && p[1].name) || "").slice(0, 60),
+      t: String(r.tournament || "").slice(0, 80), r: String(r.round || "").slice(0, 60),
+      gw: (r.games_won || [0, 0]).slice(0, 2), f: Number(r.finished) || 0,
+      ref: String(r.referee || "").slice(0, 40),
+    };
+    await env.DRAW_KV.put("sheet:" + id, text, { metadata: meta });
+    return json(JSON.stringify({ ok: true, id }));
+  }
+
+  const denied = needsPassword(request, env) || needsAdmin(request, env);
+  if (denied) return denied;
+
+  if (request.method === "GET") {
+    const id = cid(url.searchParams.get("id"));
+    if (id) {
+      const raw = await env.DRAW_KV.get("sheet:" + id);
+      return raw ? json(raw) : fail("Not found.", 404);
+    }
+    const out = [];
+    let cursor;
+    do {
+      const l = await env.DRAW_KV.list({ prefix: "sheet:", cursor });
+      for (const k of l.keys) if (k.metadata) out.push(k.metadata);
+      cursor = l.list_complete ? undefined : l.cursor;
+    } while (cursor && out.length < 2000);
+    out.sort((a, b) => (b.f || 0) - (a.f || 0));
+    return json(JSON.stringify({ sheets: out }));
+  }
+
+  if (request.method === "DELETE") {
+    const id = cid(url.searchParams.get("id"));
+    if (!id) return fail("No id.", 400);
+    await env.DRAW_KV.delete("sheet:" + id);
+    return json(JSON.stringify({ ok: true }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
 async function sheetRoute(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
   if (request.method !== "POST") return fail("Method not allowed.", 405);
@@ -703,6 +766,7 @@ export default {
     if (path === "/api/tournaments") return tournamentsRoute(request, env);
     if (path === "/api/rankings") return rankingsRoute(request, env);
     if (path === "/api/sheet") return sheetRoute(request, env);
+    if (path === "/api/scoresheets") return scoresheetsRoute(request, env);
     if (path === "/api/respic") return respicRoute(request, env);
 
     /* Not an API address — serve the ordinary file for it. */

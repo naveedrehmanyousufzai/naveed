@@ -15,10 +15,51 @@ const esc = t => String(t ?? '').replace(/[&<>"]/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
 ));
 
-const load = () => {
+const localLoad = () => {
   try { return JSON.parse(localStorage.getItem(STORE) || '[]'); }
   catch { return []; }
 };
+
+/* The list on screen: this device's sheets plus, for the organiser, every
+   sheet on the server. Server entries are summaries until opened. */
+let ALL = localLoad();
+let isAdmin = false;
+const pw = () => sessionStorage.getItem('nr-pass') || '';
+const load = () => ALL;
+
+function fromMeta(k) {
+  return { id: k.id, remote: true, players: [{ name: k.a }, { name: k.b }], tournament: k.t, round: k.r,
+    games_won: k.gw, finished: k.f, referee: k.ref };
+}
+
+async function syncAdmin() {
+  const res = await fetch('/api/scoresheets', { headers: { 'x-admin-password': pw() }, cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const remote = (await res.json()).sheets || [];
+  const have = new Set(remote.map(k => k.id));
+  const local = localLoad();
+  /* send up anything this device has that the server does not */
+  for (const m of local) {
+    if (have.has(m.id)) continue;
+    try {
+      await fetch('/api/scoresheets', { method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': pw() }, body: JSON.stringify(m) });
+      remote.push({ id: m.id, a: m.players?.[0]?.name, b: m.players?.[1]?.name, t: m.tournament, r: m.round,
+        gw: m.games_won, f: m.finished, ref: m.referee });
+    } catch { /* try again next visit */ }
+  }
+  const localById = new Map(local.map(m => [m.id, m]));
+  ALL = remote.map(k => localById.get(k.id) || fromMeta(k)).sort((a, b) => (b.finished || 0) - (a.finished || 0));
+}
+
+async function checkAdmin() {
+  if (!pw()) return false;
+  try {
+    const res = await fetch('/api/verify', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': pw() }, body: '{}' });
+    return res.ok && (await res.json()).name === 'Admin';
+  } catch { return false; }
+}
 
 const when = ms => new Date(ms).toLocaleString([], {
   day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -30,25 +71,46 @@ const mins = (a, b) => {
 };
 
 /* ---------- The list ---------- */
+function bindLogin() {
+  const f = document.getElementById('sheetLogin');
+  if (!f) return;
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = document.getElementById('sheetLoginMsg');
+    msg.textContent = 'Checking\u2026';
+    sessionStorage.setItem('nr-pass', document.getElementById('sheetPw').value);
+    if (!(await checkAdmin())) { sessionStorage.removeItem('nr-pass'); msg.textContent = 'That is not the organiser password.'; return; }
+    sessionStorage.setItem('nr-referee', 'Admin');
+    await start();
+  });
+}
+
 function renderList() {
   const root = document.getElementById('sheetList');
   const all = load();
+  const login = isAdmin ? '' : `<form class="sheet-login" id="sheetLogin">
+      <strong>Organiser? Sign in to see every scoresheet from every device.</strong>
+      <input class="pad__name" type="password" id="sheetPw" placeholder="Admin password" autocomplete="current-password">
+      <button class="btn btn--solid" type="submit">Sign in</button>
+      <span class="pad__publish-state" id="sheetLoginMsg"></span></form>`;
 
   if (!all.length) {
-    root.innerHTML = `<p class="pad__empty">No finished matches saved on this device yet.
+    root.innerHTML = login + `<p class="pad__empty">No finished matches saved yet.
     Run a match through to the end on the referee pad and it will appear here.</p>`;
+    bindLogin();
     return;
   }
 
-  root.innerHTML = `<div class="sheet-list">` + all.map(m => `
+  root.innerHTML = login + `<div class="sheet-list">` + all.map(m => `
     <button class="sheet-row" data-id="${esc(m.id)}">
       <span class="sheet-row__main">
         <strong>${esc(m.players?.[0]?.name || '')} v ${esc(m.players?.[1]?.name || '')}</strong>
-        <span class="sheet-row__meta">${esc(m.tournament || '')}${m.round ? ' · ' + esc(m.round) : ''}</span>
+        <span class="sheet-row__meta">${esc(m.tournament || '')}${m.round ? ' \u00b7 ' + esc(m.round) : ''}${m.referee ? ' \u00b7 ' + esc(m.referee) : ''}</span>
       </span>
-      <span class="sheet-row__score">${esc((m.games_won || [])[0])}–${esc((m.games_won || [])[1])}</span>
+      <span class="sheet-row__score">${esc((m.games_won || [])[0])}\u2013${esc((m.games_won || [])[1])}</span>
       <span class="sheet-row__date">${esc(when(m.finished))}</span>
     </button>`).join('') + `</div>`;
+  bindLogin();
 
   root.querySelectorAll('.sheet-row').forEach(b =>
     b.addEventListener('click', () => openSheet(b.dataset.id)));
@@ -82,9 +144,16 @@ function wsGame(m, n, rows) {
   </div>`;
 }
 
-function openSheet(id) {
-  const m = load().find(x => x.id === id);
+async function openSheet(id) {
+  let m = load().find(x => x.id === id);
   if (!m) return;
+  if (m.remote) {
+    try {
+      const res = await fetch('/api/scoresheets?id=' + encodeURIComponent(id), { headers: { 'x-admin-password': pw() } });
+      if (!res.ok) throw new Error();
+      m = await res.json();
+    } catch { return alert('Could not open that scoresheet right now.'); }
+  }
 
   const view = document.getElementById('sheetView');
   const won = m.games_won || [0, 0];
@@ -105,6 +174,7 @@ function openSheet(id) {
     <div class="sheet-tools no-print">
       <button class="btn btn--solid" id="sheetPrint">Print this sheet</button>
       <button class="btn btn--ghost" id="sheetBack">Back to the list</button>
+      ${isAdmin ? '<button class="btn btn--ghost" id="sheetDel">Delete this scoresheet</button>' : ''}
     </div>
 
     <article class="ws">
@@ -157,6 +227,15 @@ function openSheet(id) {
   });
   window.scrollTo(0, 0);
 
+  const del = document.getElementById('sheetDel');
+  if (del) del.addEventListener('click', async () => {
+    if (!confirm('Delete this scoresheet everywhere? This cannot be undone.')) return;
+    await fetch('/api/scoresheets?id=' + encodeURIComponent(id), { method: 'DELETE', headers: { 'x-admin-password': pw() } });
+    localStorage.setItem(STORE, JSON.stringify(localLoad().filter(x => x.id !== id)));
+    ALL = ALL.filter(x => x.id !== id);
+    document.getElementById('sheetBack').click();
+    renderList();
+  });
   document.getElementById('sheetPrint').addEventListener('click', () => window.print());
   document.getElementById('sheetBack').addEventListener('click', () => {
     view.hidden = true;
@@ -167,7 +246,7 @@ function openSheet(id) {
 
 /* ---------- Export and clear ---------- */
 document.getElementById('sheetExport').addEventListener('click', () => {
-  const all = load();
+  const all = localLoad();
   if (!all.length) return alert('There is nothing saved on this device yet.');
   const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -178,10 +257,17 @@ document.getElementById('sheetExport').addEventListener('click', () => {
 });
 
 document.getElementById('sheetClear').addEventListener('click', () => {
-  if (!load().length) return;
-  if (!confirm('Delete every saved scoresheet on this device? This cannot be undone.')) return;
+  if (!localLoad().length) return;
+  if (!confirm('Delete the scoresheets saved on this device? Copies on the server stay.')) return;
   localStorage.removeItem(STORE);
+  ALL = isAdmin ? ALL.filter(m => m.remote) : [];
   renderList();
 });
 
+async function start() {
+  isAdmin = await checkAdmin();
+  if (isAdmin) { try { await syncAdmin(); } catch { /* show this device's sheets */ } }
+  renderList();
+}
 renderList();
+start();
