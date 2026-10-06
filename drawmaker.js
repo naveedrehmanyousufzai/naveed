@@ -421,6 +421,8 @@ async function loadPublished() {
     const res = await fetch('/api/schedule?tournament=' + encodeURIComponent(tid), { cache: 'no-store' });
     publishedHere = res.ok ? (await res.json()).schedules || [] : [];
   } catch { /* nothing published yet */ }
+  $('dmDelAll').hidden = !publishedHere.length;
+  $('dmDelOne').hidden = true;
   open.innerHTML = '<option value="">— none —</option>' +
     publishedHere.map((s, i) => `<option value="${i}">${stamp(s.event || 'Draw')}</option>`).join('');
 }
@@ -453,7 +455,31 @@ async function loadEntries() {
   renderPlayers();
 }
 $('dmTournament').addEventListener('change', () => { loadPublished(); loadEntries(); });
-$('dmOpen').addEventListener('change', e => openPublished(e.target.value));
+$('dmOpen').addEventListener('change', e => { openPublished(e.target.value); $('dmDelOne').hidden = e.target.value === ''; });
+
+async function deletePublished(list, what) {
+  if (!list.length) return;
+  if (!confirm('Delete ' + what + '? The draw, its matches, courts, times and results are removed from the site. This cannot be undone.')) return;
+  try {
+    for (const s of list) {
+      const res = await fetch('/api/schedule?id=' + encodeURIComponent(s.id), {
+        method: 'DELETE', headers: { 'x-admin-password': sessionStorage.getItem(PASS_KEY) || '' }
+      });
+      if (res.status === 401 || res.status === 403) throw new Error('Sign in as the organiser first.');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }
+    Object.keys(drafts).forEach(k => delete drafts[k]);
+    $('dmOpen').value = '';
+    await loadPublished();
+    location.reload();
+  } catch (err) { say('Could not delete — ' + err.message, 'bad'); }
+}
+$('dmDelOne').addEventListener('click', () => {
+  const s = publishedHere[Number($('dmOpen').value)];
+  if (s) deletePublished([s], 'the published draw "' + (s.event || 'Draw') + '"');
+});
+$('dmDelAll').addEventListener('click', () =>
+  deletePublished(publishedHere.slice(), 'ALL ' + publishedHere.length + ' published draw(s) of this tournament'));
 
 $('dmFeedback').addEventListener('click', async () => {
   const box = $('dmFeedbackList');
