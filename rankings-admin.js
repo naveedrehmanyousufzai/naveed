@@ -114,7 +114,7 @@ function normCategory0(text) {
 
   function build() {
     root.innerHTML = `<div class="res-admin"><div class="res-admin__bar">
-      <label class="btn btn--solid" for="rkFile" style="cursor:pointer">Import Word / Excel / CSV</label>
+      <label class="btn btn--solid" for="rkFile" style="cursor:pointer">Import a ready-made ranking list (Rank, Name, Club, Points)</label>
       <input type="file" id="rkFile" accept=".docx,.xlsx,.xls,.csv" hidden>
       <button class="btn btn--ghost" id="rkSheetBtn" type="button">Import Google Sheet</button>
       <button class="btn btn--ghost" id="rkClear" type="button">Remove imported rankings</button>

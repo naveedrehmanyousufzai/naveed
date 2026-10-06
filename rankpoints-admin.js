@@ -149,7 +149,7 @@
   }
 
   function build() {
-    root.innerHTML = `<details class="res-admin"><summary class="btn btn--ghost">Rankings from finishing positions (organiser)</summary>
+    root.innerHTML = `<details class="res-admin" open><summary class="btn btn--solid">Import tournament results → rankings (finishing positions)</summary>
       <p><span class="pad__publish-state" id="rpState"></span></p><div id="rpBody"></div></details>`;
     render();
   }
