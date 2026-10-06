@@ -1780,3 +1780,9 @@ a.tt__row strong { text-decoration: none; }
 .rp-res { width: 100%; margin: 6px 0; }
 .rp-res .pad__name { width: 100%; min-width: 70px; }
 .rp-ev .rp-res, .rp-ev > button[data-addr] { flex-basis: 100%; }
+
+.rp-imp { border-top: 1px solid var(--hairline); padding: 10px 0; }
+.rp-imp h4 { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.rp-imp h4 select { width: auto; }
+.rp-imp__col { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; }
+.rp-imp__col select { width: auto; }

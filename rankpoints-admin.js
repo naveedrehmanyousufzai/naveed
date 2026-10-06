@@ -80,7 +80,7 @@
         old.set(s.id, ev);
       });
       S.events = [...old.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)) || a.division.localeCompare(b.division));
-      S.events.forEach(ev => { if (ev.tid && !S.tlevels[ev.tid]) S.tlevels[ev.tid] = (S.config.levels[1] || S.config.levels[0] || {}).name || ''; });
+      S.events.forEach(ev => { if (ev.tid && !S.tlevels[ev.tid]) S.tlevels[ev.tid] = (S.config.levels[0] || {}).name || ''; });
       st.textContent = added ? added + ' new event(s) found. Check the levels, then Save.' : 'Up to date.';
     } catch (err) { st.textContent = 'Could not read the draws: ' + err.message; }
     render();
@@ -109,12 +109,21 @@
       <p class="pad__intro">Ranking score = (all points) ÷ ${e(S.config.divisor)}.</p>
     </div>
     <div class="res-admin__box">
-      <h3>3 · Events</h3>
+      <h3>3 · Add results from a spreadsheet</h3>
+      <p class="pad__intro">One sheet (tab) per category. Column A = Name, column B = Association, then one column per tournament. Put the tournament name, its date in brackets and its level in the column heading, e.g. “1st ABC National Junior Squash Championship 2025 (October 7 2025) Silver Event”. Each cell is how far the player got: <b>Winner, Runner Up, Semi Final, Quarter Final, Round of 16, Round of 32, Round of 64</b>.</p>
+      <label class="btn btn--solid" for="rpFile" style="cursor:pointer">Choose Excel / CSV file</label>
+      <input type="file" id="rpFile" accept=".xlsx,.xls,.csv" hidden>
+      <button class="btn btn--ghost" id="rpTemplate" type="button">Download a template</button>
+      <div id="rpImport"></div>
+    </div>
+    <div class="res-admin__box">
+      <h3>4 · Events</h3>
       <p><button class="btn btn--solid" id="rpLoad" type="button">Load results from draws</button>
       <button class="btn btn--ghost" id="rpAddEv" type="button">Add an event by hand</button></p>
       ${!S.events.length ? '<p class="pad__empty">No events yet. Press “Load results from draws”.</p>' : tids.map(tid => `
         <h4 class="rp-t">${e(tname(tid))}
-          <select class="pad__name" data-tlevel="${e(tid)}">${lv.map(l => `<option${(S.tlevels[tid] || '') === l.name ? ' selected' : ''}>${e(l.name)}</option>`).join('')}</select></h4>
+          <select class="pad__name" data-tlevel="${e(tid)}">${lv.map(l => `<option${(S.tlevels[tid] || '') === l.name ? ' selected' : ''}>${e(l.name)}</option>`).join('')}</select>
+          <input class="pad__name" type="number" min="0" step="1000" data-prize="${e(tid)}" placeholder="or prize money per category (Rs)" value="${e((S.prize || {})[tid] || '')}" style="width:260px"></h4>
         ${S.events.map((ev, i) => ev.tid !== tid ? '' : `
         <div class="rp-ev${ev.include === false ? ' rp-ev--off' : ''}">
           <label class="rp-ev__inc"><input type="checkbox" data-inc="${i}" ${ev.include !== false ? 'checked' : ''}> count</label>
@@ -131,7 +140,7 @@
         </div>`).join('')}`).join('')}
     </div>
     <div class="res-admin__box">
-      <h3>4 · Preview and publish</h3>
+      <h3>5 · Preview and publish</h3>
       <p class="pad__intro">${cats.length ? cats.map(c => e(c) + ' (' + preview.filter(p => p.category === c).length + ')').join(' · ') : 'Nothing counts yet.'}</p>
       <button class="btn btn--solid" id="rpSave" type="button">Save and publish rankings</button>
       <span class="pad__publish-state" id="rpState2"></span>
@@ -157,6 +166,153 @@
     }
   });
 
+  /* Prize money per category sets the level: up to 100,000 Bronze, up to 200,000 Silver,
+     up to 300,000 Gold, above that Diamond. */
+  const levelFromPrize = n => n <= 100000 ? 'Bronze' : n <= 200000 ? 'Silver' : n <= 300000 ? 'Gold' : 'Diamond';
+  function ensureLevel(name) {
+    if (name && !S.config.levels.some(l => l.name === name)) S.config.levels.push({ name, mult: 1 });
+  }
+
+  /* ---------- Spreadsheet import ---------- */
+  const script = src => new Promise((ok, no) => {
+    if (window.XLSX) return ok();
+    const s = document.createElement('script'); s.src = src; s.onload = ok;
+    s.onerror = () => no(new Error('Could not load the spreadsheet reader. Check your connection.')); document.head.appendChild(s);
+  });
+  const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+  const CATS = ['Boys Under 9', 'Boys Under 11', 'Boys Under 13', 'Boys Under 15', 'Boys Under 17', 'Boys Under 19',
+    'Girls Under 9', 'Girls Under 11', 'Girls Under 13', 'Girls Under 15', 'Girls Under 17', 'Girls Under 19', 'Men', 'Women'];
+  let IMP = null;
+
+  /* What a cell says -> the position it means. Round N depends on the size of the draw:
+     the deepest "Round N" in the column comes just before the quarter-finals. */
+  function posFromText(text, maxRound) {
+    const t = String(text || '').trim().toLowerCase().replace(/[._-]/g, ' ').replace(/\s+/g, ' ');
+    if (!t) return 0;
+    if (/^\d+$/.test(t)) return Number(t);
+    if (/^(winner|champion|won|1st|first|gold)$/.test(t)) return 1;
+    if (/^(runner ?up|finalist|final|2nd|second|silver|lost final)$/.test(t)) return 2;
+    if (/^(semi ?finals?|semis?|sf|3rd|third|4th|fourth|bronze)$/.test(t)) return 3;
+    if (/^(quarter ?finals?|quarters?|qf)$/.test(t)) return 5;
+    if (/(round of|last) ?16|^r ?16$/.test(t)) return 9;
+    if (/(round of|last) ?32|^r ?32$/.test(t)) return 17;
+    if (/(round of|last) ?64|^r ?64$/.test(t)) return 33;
+    const m = t.match(/^(?:round|rd|r)\s*(\d+)$/);
+    if (m && maxRound) return Math.pow(2, (maxRound + 3) - Number(m[1])) + 1;
+    return 0;
+  }
+
+  function parseHeader(h) {
+    const lines = String(h || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    const flat = lines.join(' ').replace(/\s+/g, ' ');
+    const lv = (flat.match(/\b(bronze|silver|gold|diamond)\b/i) || [])[1];
+    const level = lv ? lv[0].toUpperCase() + lv.slice(1).toLowerCase() : '';
+    let date = '';
+    const dm = flat.match(/\(([^)]*\d{4}[^)]*)\)/);
+    if (dm) { const d = new Date(dm[1]); if (!isNaN(d)) date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    const name = flat.replace(/\([^)]*\d{4}[^)]*\)/g, ' ').replace(/\b(bronze|silver|gold|diamond)\s*(event|level)?\b/ig, ' ').replace(/\s+/g, ' ').trim();
+    return { name, level, date };
+  }
+
+  function parseSheet(name, rows) {
+    const head = rows[0] || [];
+    const cols = [];
+    for (let j = 2; j < head.length; j++) {
+      if (!String(head[j] || '').trim()) continue;
+      const h = parseHeader(head[j]);
+      const body = rows.slice(1).filter(r => String(r[0] || '').trim());
+      const maxRound = Math.max(0, ...body.map(r => { const m = String(r[j] || '').trim().toLowerCase().match(/^(?:round|rd|r)\s*(\d+)$/); return m ? Number(m[1]) : 0; }));
+      const results = [];
+      const unknown = new Set();
+      body.forEach(r => {
+        const cell = String(r[j] ?? '').trim();
+        if (!cell) return;
+        const pos = posFromText(cell, maxRound);
+        if (pos) results.push({ name: String(r[0]).trim(), club: String(r[1] || '').trim(), pos });
+        else unknown.add(cell);
+      });
+      results.sort((x, y) => x.pos - y.pos || x.name.localeCompare(y.name));
+      cols.push({ ...h, results, unknown: [...unknown] });
+    }
+    return { sheet: name, category: normCat(name), cols };
+  }
+
+  async function readFile(file) {
+    const box = $('rpImport');
+    box.innerHTML = '<p class="pad__empty">Reading…</p>';
+    try {
+      await script(XLSX_URL);
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      IMP = { sheets: wb.SheetNames.map(n => parseSheet(n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', blankrows: false }))).filter(s => s.cols.length) };
+      if (!IMP.sheets.length) { box.innerHTML = '<p class="pad__empty">No tournament columns found. Column A should be Name, column B Association, and the tournaments from column C.</p>'; return; }
+      renderImport();
+    } catch (err) { box.innerHTML = '<p class="pad__empty">Could not read the file: ' + e(err.message) + '</p>'; }
+  }
+
+  function renderImport() {
+    const box = $('rpImport');
+    const lv = S.config.levels.map(l => l.name);
+    const lvAll = [...new Set(lv.concat(['Bronze', 'Silver', 'Gold', 'Diamond']))];
+    box.innerHTML = IMP.sheets.map((s, si) => `
+      <div class="rp-imp">
+        <h4>Sheet “${e(s.sheet)}” → category
+          <select class="pad__name" data-impcat="${si}"><option value="">— choose —</option>${[...new Set(CATS.concat(s.category ? [s.category] : []))].map(c => `<option${c === s.category ? ' selected' : ''}>${e(c)}</option>`).join('')}</select></h4>
+        ${s.cols.map((c, ci) => `<div class="rp-imp__col">
+          <strong>${e(c.name)}</strong>
+          <span class="rp-ev__meta">${e(c.date || 'no date')} · ${c.results.length} players${c.unknown.length ? ' · <em>not understood: ' + e(c.unknown.join(', ')) + '</em>' : ''}</span>
+          <select class="pad__name" data-implvl="${si}.${ci}"><option value="">Level?</option>${lvAll.map(l => `<option${c.level === l ? ' selected' : ''}>${e(l)}</option>`).join('')}</select>
+        </div>`).join('')}
+      </div>`).join('') + `<p><button class="btn btn--solid" id="rpImpApply" type="button" ${IMP.sheets.some(s => !s.category) || IMP.sheets.some(s => s.cols.some(c => !c.level)) ? 'disabled' : ''}>Add these results</button>
+      <span class="pad__publish-state">${IMP.sheets.some(s => !s.category) ? 'Choose a category for each sheet. ' : ''}${IMP.sheets.some(s => s.cols.some(c => !c.level)) ? 'Choose a level for each tournament.' : ''}</span></p>`;
+  }
+
+  function applyImport() {
+    let n = 0;
+    IMP.sheets.forEach(s => s.cols.forEach(c => {
+      ensureLevel(c.level);
+      const tid = 'imp-' + slug(c.name);
+      S.tlevels[tid] = c.level;
+      const id = tid + '-' + slug(s.category);
+      const ev = { id, tid, tournament: c.name, date: c.date, division: s.sheet, category: s.category, include: true, manual: true, note: 'From spreadsheet', results: c.results };
+      const i = S.events.findIndex(x => x.id === id);
+      if (i >= 0) S.events[i] = ev; else S.events.push(ev);
+      n++;
+    }));
+    S.events.sort((a, b) => String(b.date).localeCompare(String(a.date)) || a.division.localeCompare(b.division));
+    S._msg = '';
+    IMP = null; render();
+    $('rpState').textContent = n + ' event(s) added. Check them below, then Save and publish.';
+  }
+
+  function downloadTemplate() {
+    script(XLSX_URL).then(() => {
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['Name', 'Association', 'Sindh Junior Championship 2026 (March 5 2026) Bronze Event', 'National Junior Championship 2026 (May 10 2026) Silver Event'],
+        ['Player One', 'Sindh', 'Winner', 'Semi Final'],
+        ['Player Two', 'Punjab', 'Runner Up', 'Winner'],
+        ['Player Three', 'KPK', 'Semi Final', 'Quarter Final'],
+        ['Player Four', 'Navy', 'Round of 16', 'Round of 32'],
+        ['Player Five', 'Sindh', 'Round of 32', 'Round of 64']
+      ]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Girls Under 13');
+      XLSX.writeFile(wb, 'ranking-results-template.xlsx');
+    });
+  }
+
+  root.addEventListener('change', ev => {
+    const t = ev.target;
+    if (t.id === 'rpFile') { if (t.files[0]) readFile(t.files[0]); t.value = ''; return; }
+    if (t.dataset.impcat !== undefined) { IMP.sheets[Number(t.dataset.impcat)].category = t.value; renderImport(); return; }
+    if (t.dataset.implvl !== undefined) { const [si, ci] = t.dataset.implvl.split('.').map(Number); IMP.sheets[si].cols[ci].level = t.value; renderImport(); return; }
+    if (t.dataset.prize !== undefined) {
+      S.prize = S.prize || {}; S.prize[t.dataset.prize] = Number(t.value) || '';
+      if (Number(t.value) > 0) { S.tlevels[t.dataset.prize] = levelFromPrize(Number(t.value)); ensureLevel(S.tlevels[t.dataset.prize]); }
+      render(); return;
+    }
+  });
+
   root.addEventListener('change', ev => {
     const t = ev.target;
     if (t.dataset.inc !== undefined) { S.events[Number(t.dataset.inc)].include = t.checked; render(); }
@@ -167,6 +323,8 @@
   root.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     if (t.id === 'rpLoad') loadFromDraws();
+    else if (t.id === 'rpImpApply') applyImport();
+    else if (t.id === 'rpTemplate') downloadTemplate();
     else if (t.id === 'rpAddEv') {
       S.events.unshift({ id: 'manual-' + Date.now(), tid: 'manual', tournament: 'Added by hand', date: '', division: '', category: '', include: true, manual: true, note: '', results: [{ name: '', club: '', pos: 1 }] });
       open = new Set([0]); render();
@@ -182,7 +340,7 @@
     } else if (t.id === 'rpSave') {
       const st = $('rpState2'); st.textContent = 'Saving…';
       try {
-        const res = await fetch('/api/rankpoints', { method: 'POST', headers: headers(), body: JSON.stringify({ config: S.config, tlevels: S.tlevels, events: S.events }) });
+        const res = await fetch('/api/rankpoints', { method: 'POST', headers: headers(), body: JSON.stringify({ config: S.config, tlevels: S.tlevels, prize: S.prize || {}, events: S.events }) });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
         st.textContent = 'Published. The rankings page is updated.';
         if (window.reloadRankings) window.reloadRankings();
@@ -195,7 +353,7 @@
     try {
       const r = await fetch('/api/rankpoints', { cache: 'no-store' });
       const d = r.ok ? await r.json() : {};
-      if (d && Array.isArray(d.events)) S = { config: { ...S.config, ...d.config }, tlevels: d.tlevels || {}, events: d.events };
+      if (d && Array.isArray(d.events)) S = { config: { ...S.config, ...d.config }, tlevels: d.tlevels || {}, prize: d.prize || {}, events: d.events };
     } catch { /* start fresh */ }
     build();
   }

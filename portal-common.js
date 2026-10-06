@@ -84,7 +84,7 @@
      Ranking score = all points added up / divisor (default 10). */
   const DEFAULT_RANK_CONFIG = {
     table: [[1, 100], [2, 70], [3, 50], [5, 30], [9, 15], [17, 8], [33, 4]],
-    levels: [{ name: 'National', mult: 1.5 }, { name: 'Provincial', mult: 1 }, { name: 'Club', mult: 0.5 }],
+    levels: [{ name: 'Bronze', mult: 1 }, { name: 'Silver', mult: 1.5 }, { name: 'Gold', mult: 2 }, { name: 'Diamond', mult: 3 }],
     divisor: 10
   };
   function computeRanking(d) {
