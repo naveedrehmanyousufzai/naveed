@@ -38,6 +38,7 @@ function card(m) {
         : m.phase === 'warmup' ? 'Warm-up' : m.phase === 'interval' ? 'Rest' : m.phase === 'ready' ? 'Starting' : 'Live'}</span>
     </header>
 
+    ${m.started ? `<p class="lm__event">Started ${esc(new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</p>` : ''}
     <p class="lm__event">${esc(m.tournament || '')}${m.round ? ' · ' + esc(m.round) : ''}</p>
 
     ${side(0)}
@@ -151,8 +152,9 @@ async function schedules() {
 const lc = s => String(s || '').trim().toLowerCase();
 const lmClock = t => {
   if (!t) return '';
+  t = String(t).replace(' ', 'T');
   const d = new Date(t);
-  if (isNaN(d)) return '';
+  if (isNaN(d)) return String(t);
   const day = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   return String(t).includes('T') ? day + ', ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : day;
 };
@@ -210,6 +212,7 @@ async function openPop(key, sid, mid) {
       <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>`;
     el.querySelector('#lpList').innerHTML =
       row('Scheduled', sm && lmClock(sm.time)) +
+      (m.started ? row('Started', new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '') +
       row('Court', (sm && sm.court) || m.court ? 'Court ' + ((sm && sm.court) || m.court) : '') +
       row('Referee', (sm && sm.referee) || m.referee);
   };
