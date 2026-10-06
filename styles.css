@@ -1755,3 +1755,11 @@ a.tt__row strong { text-decoration: none; }
 /* 47. Import column choice */
 .ent-map { margin: 10px 0; }
 .ent-map summary { cursor: pointer; color: var(--gold-ink); font-weight: 600; }
+
+/* 48. Match popup on the Matches tab */
+.mt__row[data-mid] { cursor: pointer; }
+.mt__row[data-mid]:hover { background: var(--card); }
+.mm__live { text-align: center; border: 1px solid var(--gold); background: var(--paper); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.mm__pts { display: flex; justify-content: center; align-items: baseline; gap: 14px; font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 44px; color: var(--gold-ink); margin: 6px 0; }
+.mm__pts span { color: var(--ash); }
+.mm__live p { margin: 2px 0; color: var(--ash); font-size: var(--t-sm); }

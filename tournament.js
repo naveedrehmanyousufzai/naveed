@@ -576,6 +576,7 @@ document.addEventListener('click', async e => {
    MATCHES — who plays whom, where and when
    ============================================================ */
 let schedules = null;
+let matchCache = [];
 
 const dayKey = t => (t ? String(t).slice(0, 10) : '');
 const clock = t => {
@@ -602,7 +603,7 @@ async function matchesPanel(box) {
   schedules.forEach(s => (s.matches || []).forEach(m => {
     if (divPick.matches && (s.event || 'Matches') !== divPick.matches) return;
     if (m.status === 'bye' || (!m.p1 && !m.p2 && !m.time)) return;
-    all.push({ ...m, event: s.event || '' });
+    all.push({ ...m, event: s.event || '', sid: s.id, tour: s.tournament || '' });
   }));
 
   if (!all.length) {
@@ -619,7 +620,7 @@ async function matchesPanel(box) {
       ${all.filter(m => dayKey(m.time) === dk).map(m => {
         const who = p => p ? esc(p.name) : '<em>to be decided</em>';
         const win = i => m.status === 'done' && m.winner === i ? ' mt__win' : '';
-        return `<div class="mt__row">
+        return `<div class="mt__row" data-sid="${esc(m.sid || '')}" data-mid="${esc(m.id || '')}" tabindex="0" role="button">
           <span class="mt__when">${esc(clock(m.time)) || '—'}<small>${m.court ? 'Court ' + esc(m.court) : 'Court tbc'}</small></span>
           <span class="mt__who"><span class="${win(0).trim()}">${who(m.p1)}</span> <i>v</i> <span class="${win(1).trim()}">${who(m.p2)}</span>
             <small>${esc(m.event)}${m.event ? ' · ' : ''}${esc(m.round)}</small></span>
@@ -627,6 +628,7 @@ async function matchesPanel(box) {
         </div>`;
       }).join('')}
     </div>`).join('');
+  matchCache = all;
 }
 
 /* ============================================================
@@ -728,4 +730,85 @@ NR.tournaments().then(async list => {
   show();
 }).catch(() => {
   root.innerHTML = '<p class="pad__empty">This tournament could not be loaded. Please refresh.</p>';
+});
+
+
+/* ============================================================
+   MATCH POPUP — details, time and the live score
+   ============================================================ */
+let mpTimer = null;
+function closeMatchPopup() {
+  clearInterval(mpTimer);
+  document.querySelectorAll('.mm--match').forEach(e => e.remove());
+}
+
+function openMatchPopup(sid, mid) {
+  const m = matchCache.find(x => x.sid === sid && String(x.id) === String(mid));
+  if (!m) return;
+  closeMatchPopup();
+  const when = !m.time ? '' : (String(m.time).includes('T')
+    ? fmtDate(dayKey(m.time)) + ', ' + clock(m.time) : fmtDate(dayKey(m.time)));
+  const tbd = '<span class="mm__tbd">To be announced</span>';
+  const row = (k, v) => `<div class="mm__row"><dt>${k}</dt><dd>${v ? esc(v) : tbd}</dd></div>`;
+  const who = p => p ? esc(p.name) + (p.club ? ` <em>${esc(p.club)}</em>` : '') : '<em>To be decided</em>';
+  const st = m.status === 'done' ? 'Finished' : m.status === 'live' ? 'Live now' : 'Scheduled';
+
+  const el = document.createElement('div');
+  el.className = 'mm mm--match';
+  el.innerHTML = `<div class="mm__card" role="dialog" aria-modal="true" aria-label="Match details">
+    <button class="mm__x" aria-label="Close">\u00d7</button>
+    <p class="mm__tour">${esc(m.tour || T.name || '')}</p>
+    <p class="mm__event">${esc(m.event)}${m.event && m.round ? ' · ' : ''}${esc(m.round || '')}</p>
+    <div class="mm__vs"><span>${who(m.p1)}</span><em>v</em><span>${who(m.p2)}</span></div>
+    <div id="mpLive"></div>
+    <dl class="mm__list">
+      ${row('Status', st)}
+      ${row('Date & time', when)}
+      ${row('Court', m.court ? 'Court ' + m.court : '')}
+      ${m.referee ? row('Referee', m.referee) : ''}
+      ${m.status === 'done' && m.score ? row('Result', m.score) : ''}
+    </dl>
+  </div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', ev => { if (ev.target === el || ev.target.classList.contains('mm__x')) closeMatchPopup(); });
+  document.addEventListener('keydown', function esc1(ev) {
+    if (ev.key === 'Escape') { closeMatchPopup(); document.removeEventListener('keydown', esc1); }
+  });
+
+  async function live() {
+    const box = el.querySelector('#mpLive');
+    if (!box) return;
+    try {
+      const r = await fetch('/api/live', { cache: 'no-store' });
+      const list = (await r.json()).matches || [];
+      const d = list.find(x => (x.match_id && String(x.match_id) === String(m.id) && x.sched_id === sid)) ||
+        list.find(x => x.players && m.p1 && m.p2 && x.players[0] && x.players[1] &&
+          String(x.players[0].name).toLowerCase() === String(m.p1.name).toLowerCase() &&
+          String(x.players[1].name).toLowerCase() === String(m.p2.name).toLowerCase());
+      if (!d || Date.now() - (d.updated || 0) > 30 * 60 * 1000) {
+        box.innerHTML = m.status === 'live' ? '<p class="mm__score">Live — score will appear shortly.</p>' : '';
+        return;
+      }
+      const sc = d.score || [0, 0], gw = d.games_won || [0, 0];
+      const games = (d.games || []).map((g, n) => `G${n + 1} ${g[0]}–${g[1]}`).join(' · ');
+      box.innerHTML = `<div class="mm__live">
+        <span class="${d.done ? 'tag tag--done' : 'tag tag--live'}">${d.done ? 'Finished' : 'Live'}</span>
+        <div class="mm__pts"><b>${esc(sc[0])}</b><span>–</span><b>${esc(sc[1])}</b></div>
+        <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>
+        ${d.court ? `<p>Court ${esc(d.court)}</p>` : ''}
+      </div>`;
+    } catch { /* keep what is shown */ }
+  }
+  live();
+  mpTimer = setInterval(live, 4000);
+}
+
+document.addEventListener('click', e => {
+  const r = e.target.closest('.mt__row[data-mid]');
+  if (r) openMatchPopup(r.dataset.sid, r.dataset.mid);
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mt__row[data-mid]')) {
+    e.preventDefault(); openMatchPopup(e.target.dataset.sid, e.target.dataset.mid);
+  }
 });

@@ -236,13 +236,16 @@ async function liveRoute(request, env) {
        can publish a match under someone else's name. */
     match.referee = whoIs(request, env);
 
-    const mid = String(match.match_id || match.sched_id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+    const mid = String(match.match_id ? (match.sched_id || "") + "-" + match.match_id : (match.pad_id || "")).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 120);
     const key = court + (mid ? "~" + mid : "");
 
-    /* A finished match left on this court makes way for a new one. */
-    if (!match.done) {
-      for (const m of await readAll(court)) {
-        if (m.done && m.key !== key) await env.DRAW_KV.delete(LIVE_PREFIX + m.key);
+    /* A finished match left on this court, or an earlier match from the
+       same pad, makes way for the new one. */
+    for (const m of await readAll(null)) {
+      if (m.key === key) continue;
+      const samePad = match.pad_id && m.pad_id === match.pad_id;
+      if (samePad || (!match.done && m.court === court && m.done)) {
+        await env.DRAW_KV.delete(LIVE_PREFIX + m.key);
       }
     }
 

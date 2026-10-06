@@ -26,6 +26,7 @@ const PAD_WARMUP_MS = 5 * 60 * 1000;   // 5 minutes, half on each side
 const PAD_REST_MS = 90 * 1000;         // rest between games
 const PAD_REVIEWS = 2;                 // video reviews per player per game
 
+const PAD_ID = Math.random().toString(36).slice(2, 10);
 let pad = null;
 let padLive = false;       // publishing to the site?
 let padTimer = null;       // debounce handle for publishing
@@ -420,6 +421,7 @@ function padPayload() {
     started: pad.started,
     game_started: pad.gameStarted,
     rallies: pad.rallies.slice(-40),
+    pad_id: PAD_ID,
     updated: now
   };
 }
@@ -812,6 +814,7 @@ function padInit() {
     });
   });
   setInterval(padTick, 500);
+  setInterval(() => { if (padLive) padPublish(); }, 60000);   // heartbeat: keeps a quiet match on the live page
 
   document.getElementById('padMineRefresh').addEventListener('click', loadMine);
   document.getElementById('padMineList').addEventListener('click', e => {
