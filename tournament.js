@@ -334,7 +334,7 @@ function normCategory(text) {
   return t && t !== String(text || '').toLowerCase().trim() ? normCategory0(t) : null;
 }
 function normCategory0(text) {
-  const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ');
+  const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ').replace(/\bgirl[a-z]*\b/g, 'girls').replace(/\bboy[a-z]*\b/g, 'boys');
   if (!t || t.length > 40) return null;
   if (/^(open )?(men|mens|men's|male)\b/.test(t) && !/under|u\d/.test(t)) return 'Men';
   if (/^(open )?(women|womens|women's|ladies|female)\b/.test(t) && !/under|u\d/.test(t)) return 'Women';
@@ -440,7 +440,7 @@ async function readPdf(file) {
 }
 
 /* Finds the header row (if any) and which column is which. */
-const HEAD_NAME = /\bname\b|^player\b|^players?$|^athlete/;
+const HEAD_NAME = /\bnames?\b|^players?\b|^athletes?/;
 function headerCols(low) {
   const f = re => low.findIndex(c => re.test(c));
   let rank = f(/rank/); if (rank < 0) rank = f(/seed/);

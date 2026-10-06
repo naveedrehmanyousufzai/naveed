@@ -29,7 +29,7 @@
   return t && t !== String(text || '').toLowerCase().trim() ? normCategory0(t) : null;
 }
 function normCategory0(text) {
-    const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ');
+    const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ').replace(/\bgirl[a-z]*\b/g, 'girls').replace(/\bboy[a-z]*\b/g, 'boys');
     if (!t || t.length > 40) return null;
     if (/^(open )?(men|mens|men's|male)\b/.test(t) && !/under|u\d/.test(t)) return 'Men';
     if (/^(open )?(women|womens|women's|ladies|female)\b/.test(t) && !/under|u\d/.test(t)) return 'Women';
@@ -92,9 +92,9 @@ function normCategory0(text) {
       const row = it.row.map(c => String(c).trim());
       if (!row.some(Boolean)) continue;
       const low = row.map(c => c.toLowerCase());
-      if (low.some(c => /^(name|player|player name)$/.test(c))) {
+      if (low.some(c => /\bnames?\b|^players?\b/.test(c))) {
         const f = re => low.findIndex(c => re.test(c));
-        cols = { fromHeader: true, name: f(/^(name|player|player name)$/), rank: f(/rank|^#$|^pos|^no\.?$/),
+        cols = { fromHeader: true, name: f(/\bnames?\b|^players?\b/), rank: f(/rank|^#$|^pos|^no\.?$/),
           club: f(/associat|club|dept|department|academy|team/), pts: f(/point|pts|score/), cat: f(/categ|division|event/) };
         continue;
       }
