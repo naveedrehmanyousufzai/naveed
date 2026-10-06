@@ -195,7 +195,7 @@ async function entriesPanel(box) {
   if (tab !== 'entries') return;
 
   /* entries typed into the CMS still show too */
-  const cms = (T.entries || []).filter(e => e.name).map((e, i) => ({ id: 'cms' + i, name: e.name, club: e.club || '', division: e.division || 'Entries', rank: e.rank || e.seed || null, cms: true }));
+  const cms = (T.entries || []).filter(e => e.name).map((e, i) => ({ id: 'cms' + i, name: e.name, club: e.club || '', division: e.division || 'Entries', country: e.country || '', rank: e.rank || e.seed || null, cms: true }));
   const list = entryList.concat(cms);
   const names = ENTRY_CATS.filter(c => list.some(e => e.division === c))
     .concat([...new Set(list.map(e => e.division))].filter(d => !ENTRY_CATS.includes(d)));
@@ -238,31 +238,50 @@ async function entriesPanel(box) {
       const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
       <table class="table plain-table"><thead><tr><th>Rank</th><th>Player</th><th>Association</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
-      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td style="white-space:nowrap">${e.cms ? '' : `<button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button>`}</td>` : ''}</tr>`).join('')}
+      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td style="white-space:nowrap"><button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button></td>` : ''}</tr>`).join('')}
       </tbody></table>`;
     }).join('')}`;
 }
 
-/* Edit a player in place */
+/* Edit a player in place. Players typed on the page are saved with the entries;
+   players that come with the tournament itself are saved with the tournament. */
+const cmsList = () => (T.entries || []).filter(e => e.name).map((e, i) => ({ id: 'cms' + i, name: e.name, club: e.club || '', division: e.division || 'Entries', country: e.country || '', rank: e.rank || e.seed || null }));
+const findEntry = id => String(id).startsWith('cms') ? cmsList().find(x => x.id === id) : entryList.find(x => x.id === id);
+async function saveCms(mutate) {
+  const real = (T.entries || []).filter(e => e.name);
+  mutate(real);
+  const next = { ...T, entries: real };
+  await TournamentsAdmin.save(next);
+  T = next;
+}
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-eedit], [data-esave], [data-ecancel]'); if (!b) return;
   if (b.dataset.ecancel !== undefined) { show(); return; }
   if (b.dataset.eedit !== undefined) {
-    const p = entryList.find(x => x.id === b.dataset.eedit); if (!p) return;
+    const p = findEntry(b.dataset.eedit); if (!p) return;
     const tr = b.closest('tr');
     const inp = (f, v, w) => `<input class="pad__name" data-f="${f}" value="${esc(v || '')}" style="width:${w}">`;
     tr.innerHTML = `<td>${inp('rank', p.rank, '56px')}</td>
-      <td>${inp('name', p.name, '100%')}<br><select class="pad__name" data-f="division">${ENTRY_CATS.map(c => `<option${c === p.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select> ${inp('country', p.country, '70px')}</td>
+      <td>${inp('name', p.name, '100%')}<br><select class="pad__name" data-f="division">${ENTRY_CATS.concat(ENTRY_CATS.includes(p.division) ? [] : [p.division]).map(c => `<option${c === p.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select> ${inp('country', p.country, '70px')}</td>
       <td>${inp('club', p.club, '100%')}</td>
       <td style="white-space:nowrap"><button class="btn btn--solid" data-esave="${esc(p.id)}">Save</button> <button class="btn btn--ghost" data-ecancel>Cancel</button></td>`;
     return;
   }
-  const p = entryList.find(x => x.id === b.dataset.esave); if (!p) return;
+  const id = b.dataset.esave;
   const v = Object.fromEntries([...b.closest('tr').querySelectorAll('[data-f]')].map(i => [i.dataset.f, i.value.trim()]));
   if (!v.name) { alert('Enter a name.'); return; }
-  const before = entryList.slice();
-  Object.assign(p, { name: v.name, club: v.club, country: v.country, division: v.division, rank: v.rank ? Number(v.rank) || v.rank : null });
-  try { await saveEntries(); divPick.entries = v.division; } catch (err) { entryList = before; alert(err.message); }
+  const rank = v.rank ? Number(v.rank) || v.rank : null;
+  try {
+    if (String(id).startsWith('cms')) {
+      const n = Number(id.slice(3));
+      await saveCms(list => { list[n] = { ...list[n], name: v.name, club: v.club, country: v.country, division: v.division, rank: rank || '' }; });
+    } else {
+      const p = entryList.find(x => x.id === id), before = entryList.slice();
+      Object.assign(p, { name: v.name, club: v.club, country: v.country, division: v.division, rank });
+      try { await saveEntries(); } catch (err) { entryList = before; throw err; }
+    }
+    divPick.entries = v.division;
+  } catch (err) { alert(err.message); }
   show();
 });
 
@@ -298,9 +317,10 @@ document.addEventListener('submit', async e => {
 document.addEventListener('click', async e => {
   const d = e.target.closest('[data-del]');
   if (!d || !confirm('Remove this player?')) return;
-  const keep = entryList;
-  entryList = entryList.filter(x => x.id !== d.dataset.del);
-  try { await saveEntries(); } catch (err) { entryList = keep; alert(err.message); }
+  try {
+    if (String(d.dataset.del).startsWith('cms')) await saveCms(list => { list.splice(Number(d.dataset.del.slice(3)), 1); });
+    else { const keep = entryList; entryList = entryList.filter(x => x.id !== d.dataset.del); try { await saveEntries(); } catch (err) { entryList = keep; throw err; } }
+  } catch (err) { alert(err.message); }
   show();
 });
 
@@ -308,6 +328,12 @@ document.addEventListener('click', async e => {
    IMPORT — read a Word table (or CSV) and list the players found
    ============================================================ */
 function normCategory(text) {
+  const r = normCategory0(text);
+  if (r) return r;
+  const t = String(text || '').toLowerCase().replace(/\b(entry|entries|list|draw|category|division|event|players?|provisional|final|of|the)\b/g, ' ').replace(/[()\[\]:\u2013\u2014,]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return t && t !== String(text || '').toLowerCase().trim() ? normCategory0(t) : null;
+}
+function normCategory0(text) {
   const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ');
   if (!t || t.length > 40) return null;
   if (/^(open )?(men|mens|men's|male)\b/.test(t) && !/under|u\d/.test(t)) return 'Men';
@@ -403,40 +429,57 @@ async function readPdf(file) {
         if (end !== null && q.x - end < 7 && cells.length) cells[cells.length - 1] += ' ' + q.s; else cells.push(q.s);
         end = q.x + q.w;
       }
+      if (cells.length === 1) {                          // "1  Ali Khan  KSA" came out as one piece
+        const m = cells[0].match(/^(\d{1,4})[.)]?\s+(.+)$/);
+        if (m) { const rest = m[2].split(/\s{2,}/); cells.splice(0, 1, m[1], ...rest); }
+      }
       items.push({ row: cells });
     }
   }
   return items;
 }
 
-function extractPlayers(items) {
+/* Finds the header row (if any) and which column is which. */
+const HEAD_NAME = /\bname\b|^player\b|^players?$|^athlete/;
+function headerCols(low) {
+  const f = re => low.findIndex(c => re.test(c));
+  let rank = f(/rank/); if (rank < 0) rank = f(/seed/);
+  return { name: f(HEAD_NAME), rank,
+    club: f(/associat|club|dept|department|academy|team|school|affiliat|organi[sz]ation|region|province|city/),
+    cat: f(/categ|division|event|age group|class/), country: f(/countr|nation/) };
+}
+const isHeaderRow = row => {
+  const low = row.map(c => c.toLowerCase());
+  return low.filter(Boolean).length >= 2 && low.some(c => HEAD_NAME.test(c) && !/^\d+$/.test(c));
+};
+
+/* force: {name, rank, club, cat, country} column numbers chosen by hand (-1 = none) */
+function extractPlayers(items, force) {
   const out = [];
   let cat = null, cols = null;
   const num = v => /^\d{1,4}$/.test(String(v).trim());
   for (const it of items) {
     if (it.heading !== undefined) { const c = normCategory(it.heading); if (c) cat = c; continue; }
-    const row = it.row.map(c => c.trim());
+    const row = it.row.map(c => String(c).replace(/\s+/g, ' ').trim());
     if (!row.some(Boolean)) continue;
-    if (row.filter(Boolean).length === 1) { const c = normCategory(row.find(Boolean)); if (c) { cat = c; continue; } }   // a lone category line (PDF, Excel)
-    const low = row.map(c => c.toLowerCase());
-    if (low.some(c => /^(name|player|player name)$/.test(c))) {          // header row
-      const find = re => low.findIndex(c => re.test(c));
-      cols = { name: find(/^(name|player|player name)$/), rank: find(/rank|seed|^#$|^no\.?$/),
-        club: find(/associat|club|dept|department|academy|team/), cat: find(/categ|division|event/),
-        country: find(/countr|nation/) };
+    if (row.filter(Boolean).length === 1) { const c = normCategory(row.find(Boolean)); if (c) { cat = c; continue; } }   // a lone category line
+    if (isHeaderRow(row)) {
+      if (!force) cols = { ...headerCols(row.map(c => c.toLowerCase())), fromHeader: true };
       continue;
     }
-    if (!cols) {                                                          // no header: guess rank, name, association
+    if (force) cols = force;
+    else if (!cols || cols.name < 0) {                                  // no usable header: guess rank, name, association
       const r0 = num(row[0]);
       cols = r0 ? { rank: 0, name: 1, club: 2, cat: -1, country: 3 } : { rank: -1, name: 0, club: 1, cat: -1, country: 2 };
-      cols.guessed = true;
     }
-    const name = row[cols.name]; if (!name || /^\d+$/.test(name)) continue;
+    let name = row[cols.name] || '';
+    name = name.replace(/^\d{1,4}\s*[.)\-:]\s*/, '').trim();            // "1. Ali Khan" -> "Ali Khan"
+    if (!name || /^\d+$/.test(name)) continue;
     const rowCat = cols.cat >= 0 ? normCategory(row[cols.cat]) : null;
-    if (!rowCat && row.length === 1) { const c = normCategory(name); if (c) { cat = c; continue; } }
+    const rk = cols.rank >= 0 ? String(row[cols.rank] || '').replace(/[^\d]/g, '') : '';
     out.push({
       name, club: cols.club >= 0 ? row[cols.club] || '' : '',
-      rank: cols.rank >= 0 && num(row[cols.rank]) ? Number(row[cols.rank]) : null,
+      rank: rk ? Number(rk) : null,
       country: cols.country >= 0 ? row[cols.country] || '' : '',
       division: rowCat || cat || '', include: true
     });
@@ -444,12 +487,34 @@ function extractPlayers(items) {
   return out;
 }
 
-let importRows = [];
+/* The labels of the first header row, for the "which column is which" boxes */
+function importColumns(items) {
+  for (const it of items) {
+    if (it.row && isHeaderRow(it.row.map(c => String(c).trim()))) {
+      const row = it.row.map(c => String(c).replace(/\s+/g, ' ').trim());
+      return { labels: row.map((c, i) => c || 'Column ' + (i + 1)), cols: headerCols(row.map(c => c.toLowerCase())) };
+    }
+  }
+  const first = items.find(it => it.row && it.row.filter(c => String(c).trim()).length >= 2);
+  const n = first ? first.row.length : 4;
+  return { labels: Array.from({ length: n }, (_, i) => 'Column ' + (i + 1)), cols: null };
+}
+
+let importRows = [], importItems = [], importMap = null;
+const MAP_FIELDS = [['name', 'Name'], ['rank', 'Rank'], ['club', 'Association'], ['country', 'Country'], ['cat', 'Category']];
+function mapUI() {
+  const { labels, cols } = importColumns(importItems);
+  const cur = importMap || cols || { name: -1, rank: -1, club: -1, country: -1, cat: -1 };
+  return `<details class="ent-map"${importRows.length ? '' : ' open'}><summary>Columns look wrong? Choose which column is which</summary>
+    <div class="ent-admin__grid">${MAP_FIELDS.map(([k, l]) => `<label class="pad__field"><span>${l}</span>
+      <select class="pad__name" data-map="${k}"><option value="-1">— none —</option>${labels.map((t, i) => `<option value="${i}"${cur[k] === i ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`).join('')}</div></details>`;
+}
 function renderImport() {
   const box = document.getElementById('entPreview');
-  if (!importRows.length) { box.innerHTML = ''; return; }
+  if (!importItems.length) { box.innerHTML = ''; return; }
+  if (!importRows.length) { box.innerHTML = '<p class="pad__empty">No players found. Choose the columns below, or use the template.</p>' + mapUI(); return; }
   const missing = importRows.filter(r => r.include && !r.division).length;
-  box.innerHTML = `<p class="pad__intro">${importRows.length} players found. Check the category of each, then import.</p>
+  box.innerHTML = mapUI() + `<p class="pad__intro">${importRows.length} players found. Check each one, then import.</p>
     <table class="table plain-table"><thead><tr><th>Add</th><th>Rank</th><th>Name</th><th>Association</th><th>Category</th></tr></thead><tbody>
     ${importRows.map((r, i) => `<tr><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include ? 'checked' : ''}></td>
       <td>${esc(r.rank || '–')}</td><td>${esc(r.name)}</td><td>${esc(r.club)}</td>
@@ -469,10 +534,17 @@ document.addEventListener('change', async e => {
         : /\.pdf$/i.test(f.name) ? await readPdf(f)
         : /\.xlsx?$/i.test(f.name) ? await readExcel(f)
         : parseCsv(await f.text()).map(row => ({ row }));
+      importItems = items; importMap = null;
       importRows = extractPlayers(items);
-      if (!importRows.length) box.innerHTML = '<p class="pad__empty">No players found. Use the template: a table with Category, Rank, Name, Association, Country.</p>';
-      else renderImport();
+      renderImport();
     } catch (err) { box.innerHTML = '<p class="pad__empty">Could not read the file: ' + esc(err.message) + '</p>'; }
+    return;
+  }
+  if (e.target.dataset && e.target.dataset.map && e.target.closest('#entPreview')) {
+    importMap = importMap || { ...(importColumns(importItems).cols || { name: -1, rank: -1, club: -1, country: -1, cat: -1 }) };
+    importMap[e.target.dataset.map] = Number(e.target.value);
+    importRows = importMap.name >= 0 ? extractPlayers(importItems, importMap) : [];
+    renderImport();
     return;
   }
   const i = e.target.dataset && e.target.dataset.i;
@@ -495,7 +567,7 @@ document.addEventListener('click', async e => {
     added++;
   }
   st.textContent = 'Saving…';
-  try { await saveEntries(); importRows = []; show(); }
+  try { await saveEntries(); importRows = []; importItems = []; show(); }
   catch (err) { entryList = before; st.textContent = err.message; }
 });
 

@@ -142,6 +142,11 @@
     return true;
   }
 
+  /* Save a tournament as it now stands (used when its own entries are edited) */
+  A.save = async t => {
+    const cur = await raw();
+    await store(cur.items.filter(x => x.id !== t.id).concat(t), cur.hidden.filter(h => h !== t.id));
+  };
   A.add = ids => openForm(null, ids);
   A.edit = t => openForm(t);
   A.remove = remove;

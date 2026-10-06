@@ -23,6 +23,12 @@
   }
 
   function normCategory(text) {
+  const r = normCategory0(text);
+  if (r) return r;
+  const t = String(text || '').toLowerCase().replace(/\b(entry|entries|list|draw|category|division|event|players?|provisional|final|of|the)\b/g, ' ').replace(/[()\[\]:\u2013\u2014,]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return t && t !== String(text || '').toLowerCase().trim() ? normCategory0(t) : null;
+}
+function normCategory0(text) {
     const t = String(text || '').trim().toLowerCase().replace(/[._]/g, ' ');
     if (!t || t.length > 40) return null;
     if (/^(open )?(men|mens|men's|male)\b/.test(t) && !/under|u\d/.test(t)) return 'Men';

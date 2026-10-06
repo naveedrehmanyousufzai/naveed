@@ -594,7 +594,7 @@ async function tournamentsRoute(request, env) {
       description: s(t.description, 5000), how_to_enter: s(t.how_to_enter, 3000),
       divisions: (Array.isArray(t.divisions) ? t.divisions : []).slice(0, 30).map(d => s(d, 60)).filter(Boolean),
       referees: (Array.isArray(t.referees) ? t.referees : []).slice(0, 60).map(r => ({ name: s(r.name, 80), role: s(r.role, 60) })).filter(r => r.name),
-      entries: Array.isArray(t.entries) ? t.entries.slice(0, 500) : [],
+      entries: (Array.isArray(t.entries) ? t.entries : []).slice(0, 500).map(e => ({ name: s(e.name, 100), club: s(e.club, 100), country: s(e.country, 60), division: s(e.division, 60), rank: s(e.rank, 6), seed: s(e.seed, 6) })).filter(e => e.name),
       logo: /^(\/api\/respic\?id=[a-z0-9]+|https?:\/\/|images\/|\/images\/)/i.test(s(t.logo, 300)) ? s(t.logo, 300) : "",
     })).filter(t => t.id && t.name);
     const hidden = (Array.isArray(b.hidden) ? b.hidden : []).slice(0, 200).map(cleanId).filter(Boolean);
