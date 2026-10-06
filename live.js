@@ -38,7 +38,7 @@ function card(m) {
         : m.phase === 'warmup' ? 'Warm-up' : m.phase === 'interval' ? 'Rest' : m.phase === 'ready' ? 'Starting' : 'Live'}</span>
     </header>
 
-    ${m.started ? `<p class="lm__event">Started ${esc(new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</p>` : ''}
+    ${m.started ? `<p class="lm__event">Started ${esc(new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))} · <span class="lm__dur" data-start="${m.started}" data-end="${m.done ? (m.ended || m.updated) : ''}">${esc(lmDur(m))}</span></p>` : ''}
     <p class="lm__event">${esc(m.tournament || '')}${m.round ? ' · ' + esc(m.round) : ''}</p>
 
     ${side(0)}
@@ -55,6 +55,15 @@ function card(m) {
 }
 
 let shown = [];
+
+/* Match duration: counts up while live; fixed once finished. */
+function lmDur(m) {
+  if (!m || !m.started) return '';
+  const end = m.done ? (m.ended || m.updated) : Date.now();
+  const t = Math.max(0, Math.floor((end - m.started) / 1000));
+  const h = Math.floor(t / 3600), mi = Math.floor((t % 3600) / 60), s = t % 60;
+  return h ? h + 'h ' + String(mi).padStart(2, '0') + 'm' : mi + ':' + String(s).padStart(2, '0') + ' min';
+}
 
 function render(list) {
   const root = document.getElementById('live-grid');
@@ -212,6 +221,7 @@ async function openPop(key, sid, mid) {
       <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>`;
     el.querySelector('#lpList').innerHTML =
       row('Scheduled', sm && lmClock(sm.time)) +
+      (m.started ? row('Duration', lmDur(m)) : '') +
       (m.started ? row('Started', new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '') +
       row('Court', (sm && sm.court) || m.court ? 'Court ' + ((sm && sm.court) || m.court) : '') +
       row('Referee', (sm && sm.referee) || m.referee);
@@ -235,3 +245,12 @@ document.addEventListener('keydown', e => {
     t.dataset.k ? openPop(t.dataset.k) : openPop(null, t.dataset.sid, t.dataset.sm);
   }
 });
+
+
+/* keep the card clocks ticking between polls */
+setInterval(() => {
+  document.querySelectorAll('.lm__dur').forEach(el => {
+    if (el.dataset.end) return;
+    el.textContent = lmDur({ started: Number(el.dataset.start) });
+  });
+}, 1000);

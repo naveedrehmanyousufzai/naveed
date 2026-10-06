@@ -795,6 +795,7 @@ function openMatchPopup(sid, mid) {
         <span class="${d.done ? 'tag tag--done' : 'tag tag--live'}">${d.done ? 'Finished' : 'Live'}</span>
         <div class="mm__pts"><b>${esc(sc[0])}</b><span>–</span><b>${esc(sc[1])}</b></div>
         <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>
+        ${d.started ? `<p>Duration ${esc((() => { const e = d.done ? (d.ended || d.updated) : Date.now(); const s = Math.max(0, Math.floor((e - d.started) / 1000)); return s >= 3600 ? Math.floor(s / 3600) + 'h ' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + 'm' : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' min'; })())}</p>` : ''}
         ${d.court ? `<p>Court ${esc(d.court)}</p>` : ''}
       </div>`;
     } catch { /* keep what is shown */ }

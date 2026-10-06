@@ -202,6 +202,7 @@ function padFinishGame(w, why) {
 
 function padEndMatch(w, why) {
   pad.done = true;
+  pad.endedAt = Date.now();
   pad.winner = w;
   pad.endNote = why || '';
   pad.phase = 'done';
@@ -421,6 +422,7 @@ function padPayload() {
     started: pad.started,
     game_started: pad.gameStarted,
     rallies: pad.rallies.slice(-40),
+    ended: pad.endedAt || null,
     pad_id: PAD_ID,
     updated: now
   };
