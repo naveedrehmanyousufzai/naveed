@@ -984,9 +984,7 @@ html { scroll-behavior: smooth; }
    25. BIG-SCREEN SCOREBOARD (scoreboard.html)
    Sized in viewport units so it fills any display.
    ============================================================ */
-.board-body { background: #05070C; overflow: hidden;
-  /* the big scoreboard screen stays dark */
-  --paper: #0B0F19; --card: #141A28; --text: #F2F4F8; --ash: #8B93A3; --hairline: #222B3C; --gold-ink: #E6C860; --ink: #080B12; }
+.board-body { background: var(--paper); overflow: hidden; }
 .board { height: 100vh; display: flex; flex-direction: column; padding: 2.2vh 2.4vw; }
 .board__waiting {
   margin: auto; color: var(--ash); font-size: 2.4vh; letter-spacing: .04em;
@@ -1004,7 +1002,7 @@ html { scroll-behavior: smooth; }
   font-size: 3.4vh; line-height: 1.05; letter-spacing: -.02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.board__round { font-size: 2vh; color: var(--gold); margin-top: .5vh; }
+.board__round { font-size: 2vh; color: var(--gold-ink); margin-top: .5vh; }
 .board__clock { text-align: right; }
 .board__clocklabel { display: block; font-size: 1.5vh; color: var(--ash); letter-spacing: .06em; }
 .board__clocktime {
@@ -1028,7 +1026,7 @@ html { scroll-behavior: smooth; }
   font-size: 30vh; line-height: .92; font-variant-numeric: tabular-nums;
   margin-top: 1vh;
 }
-.board__player--serving .board__points { color: var(--gold); }
+.board__player--serving .board__points { color: var(--gold-ink); }
 
 .board__middle { text-align: center; padding: 0 1.5vw; }
 .board__gameslabel { font-size: 1.6vh; color: var(--ash); letter-spacing: .08em; }
@@ -1046,7 +1044,7 @@ html { scroll-behavior: smooth; }
   padding-top: 1.6vh; border-top: 1px solid var(--hairline);
   font-size: 2vh; color: var(--ash);
 }
-.board__result { color: var(--gold); font-weight: 600; }
+.board__result { color: var(--gold-ink); font-weight: 600; }
 .board__stamp { font-size: 1.6vh; }
 
 @media (max-aspect-ratio: 1/1) {
@@ -1312,7 +1310,7 @@ select.pad__name { appearance: none; background-image: none; }
   background: var(--gold); color: var(--ink); font-family: 'Archivo', sans-serif;
   font-weight: 900; font-size: 3.4vh; vertical-align: middle; letter-spacing: 0;
 }
-.board__sideflag--wait { background: transparent; color: var(--gold); border: .3vh solid var(--gold); font-size: 2.4vh; }
+.board__sideflag--wait { background: transparent; color: var(--gold-ink); border: .3vh solid var(--gold); font-size: 2.4vh; }
 .board__logo--event { height: 9vh; max-width: 18vw; object-fit: contain; }
 .lm__side-tag {
   display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
@@ -1381,7 +1379,7 @@ select.pad__name { appearance: none; background-image: none; }
 .pad__stats td:not(:first-child), .pad__stats th:not(:first-child) { text-align: center; }
 
 /* big screen: countdown, banner */
-.board__clocktime--count { color: var(--gold); }
+.board__clocktime--count { color: var(--gold-ink); }
 .board__call {
   position: absolute; left: 50%; bottom: 11vh; transform: translateX(-50%);
   background: var(--gold); color: var(--ink); font-family: 'Archivo', sans-serif;
@@ -1390,7 +1388,7 @@ select.pad__name { appearance: none; background-image: none; }
 }
 .board__phase {
   text-align: center; font-family: 'Archivo', sans-serif; font-weight: 900;
-  font-size: 5vh; letter-spacing: .04em; text-transform: uppercase; color: var(--gold);
+  font-size: 5vh; letter-spacing: .04em; text-transform: uppercase; color: var(--gold-ink);
 }
 .board__phase small { display: block; font-size: 2.2vh; color: var(--ash); letter-spacing: .06em; margin-top: .6vh; }
 .board__live { position: relative; }

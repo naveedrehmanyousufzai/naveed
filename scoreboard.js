@@ -85,7 +85,7 @@ async function loadSchedule() {
   } catch { /* optional */ }
 }
 
-const DEFAULT_LOGO = 'images/nr-logo-light.png';
+const DEFAULT_LOGO = 'images/nr-logo.png';
 function setLogo(d) {
   const img = $('bLogo');
   const sc = schedules.find(s => s.id === d.sched_id) ||
@@ -190,7 +190,7 @@ function choose(matches) {
 
   if (pinned) return live.find(m => String(m.court) === String(pinned)) || null;
 
-  rotation = live.map(m => String(m.court));
+  rotation = live.map(m => String(m.key || m.court));
   if (!shownCourt || !rotation.includes(shownCourt)) {
     shownCourt = rotation[0];
     rotateAt = Date.now() + ROTATE_MS;
@@ -199,7 +199,7 @@ function choose(matches) {
     shownCourt = rotation[(i + 1) % rotation.length];
     rotateAt = Date.now() + ROTATE_MS;
   }
-  return live.find(m => String(m.court) === shownCourt) || live[0];
+  return live.find(m => String(m.key || m.court) === shownCourt) || live[0];
 }
 
 async function poll() {

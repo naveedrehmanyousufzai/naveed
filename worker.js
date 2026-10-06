@@ -188,26 +188,38 @@ async function liveRoute(request, env) {
 
   const court = cleanCourt(new URL(request.url).searchParams.get("court"));
 
-  if (request.method === "GET") {
-    /* One court asked for by name. */
-    if (court) {
-      return json((await env.DRAW_KV.get(LIVE_PREFIX + court)) || "null");
-    }
-
-    /* Otherwise every match currently running. */
+  /* Every running match on a court (or on all courts). Two referees can
+     use the same court label, so each match has its own key:
+     live:<court>  or  live:<court>~<match>. */
+  async function readAll(onlyCourt) {
     const list = await env.DRAW_KV.list({ prefix: LIVE_PREFIX });
-    const matches = [];
+    const out = [];
     for (const k of list.keys) {
+      const key = k.name.slice(LIVE_PREFIX.length);
+      const c = key.split("~")[0];
+      if (onlyCourt && c !== onlyCourt) continue;
       const raw = await env.DRAW_KV.get(k.name);
       if (!raw) continue;
       try {
         const m = JSON.parse(raw);
-        m.court = k.name.slice(LIVE_PREFIX.length);
-        matches.push(m);
-      } catch { /* skip anything unreadable rather than failing the lot */ }
+        m.court = c;
+        m.key = key;
+        out.push(m);
+      } catch { /* skip anything unreadable */ }
     }
+    return out;
+  }
+
+  if (request.method === "GET") {
+    if (court) {
+      const all = await readAll(court);
+      all.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.updated || 0) - (a.updated || 0));
+      return json(JSON.stringify(all[0] || null));
+    }
+    const matches = await readAll(null);
     matches.sort((a, b) =>
-      String(a.court).localeCompare(String(b.court), undefined, { numeric: true }));
+      String(a.court).localeCompare(String(b.court), undefined, { numeric: true }) ||
+      (a.updated || 0) - (b.updated || 0));
     return json(JSON.stringify({ matches }));
   }
 
@@ -224,7 +236,17 @@ async function liveRoute(request, env) {
        can publish a match under someone else's name. */
     match.referee = whoIs(request, env);
 
-    await env.DRAW_KV.put(LIVE_PREFIX + court, JSON.stringify(match), {
+    const mid = String(match.match_id || match.sched_id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+    const key = court + (mid ? "~" + mid : "");
+
+    /* A finished match left on this court makes way for a new one. */
+    if (!match.done) {
+      for (const m of await readAll(court)) {
+        if (m.done && m.key !== key) await env.DRAW_KV.delete(LIVE_PREFIX + m.key);
+      }
+    }
+
+    await env.DRAW_KV.put(LIVE_PREFIX + key, JSON.stringify(match), {
       expirationTtl: LIVE_TTL_SECONDS,
     });
     return json(JSON.stringify({ ok: true, court, referee: match.referee }));
