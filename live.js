@@ -116,7 +116,7 @@ async function loadSchedule() {
     const rows = [];
     list.forEach(s => (s.matches || []).forEach(m => {
       if (m.status === 'bye' || !m.p1 || !m.p2) return;
-      rows.push({ ...m, tournament: s.tournament, event: s.event });
+      rows.push({ ...m, tournament: s.tournament, event: s.event, sid: s.id });
     }));
     if (!rows.length) { root.innerHTML = ''; return; }
     rows.sort((a, b) => String(a.time || '9999').localeCompare(String(b.time || '9999')));
@@ -125,7 +125,7 @@ async function loadSchedule() {
       <hr class="rule">
       <div class="section-head"><h2>Schedule</h2></div>
       ${rows.map(m => `
-        <div class="sched__row">
+        <div class="sched__row" data-sid="${esc(m.sid || '')}" data-sm="${esc(m.id || '')}" tabindex="0" role="button" style="cursor:pointer">
           <span class="sched__time">${esc(fmt(m.time) || 'Time to be set')}${m.court ? '<br>Court ' + esc(m.court) : ''}</span>
           <span class="sched__who">${esc(m.p1.name)} v ${esc(m.p2.name)}
             <span class="sched__meta">${esc(m.tournament || '')} · ${esc(m.event || '')} · ${esc(m.round)}${m.referee ? ' · Referee ' + esc(m.referee) : ''}</span></span>
@@ -160,13 +160,20 @@ const lmClock = t => {
 let lmTimer = null;
 function closePop() { clearInterval(lmTimer); document.querySelectorAll('.mm--live').forEach(e => e.remove()); }
 
-async function openPop(key) {
-  const first = shown.find(m => String(m.key || m.court) === key);
-  if (!first) return;
+async function openPop(key, sid, mid) {
   closePop();
   const list = await schedules();
   let sc = null, sm = null;
-  for (const s of list) {
+  let first = key ? shown.find(m => String(m.key || m.court) === key) : null;
+  if (!key) {
+    sc = list.find(s => s.id === sid);
+    sm = sc && (sc.matches || []).find(x => String(x.id) === String(mid));
+    if (!sm) return;
+    first = shown.find(m => (m.match_id && m.sched_id === sid && String(m.match_id) === String(mid)) ||
+      (sm.p1 && sm.p2 && m.players && m.players[0] && lc(m.players[0].name) === lc(sm.p1.name) && lc(m.players[1] && m.players[1].name) === lc(sm.p2.name))) || null;
+  }
+  if (!first && key) return;
+  for (const s of key ? list : []) {
     const f = (s.matches || []).find(x =>
       (first.match_id && s.id === first.sched_id && String(x.id) === String(first.match_id)) ||
       (x.p1 && x.p2 && first.players && first.players[0] && lc(x.p1.name) === lc(first.players[0].name) && lc(x.p2.name) === lc(first.players[1] && first.players[1].name)));
@@ -187,13 +194,18 @@ async function openPop(key) {
   el.addEventListener('click', ev => { if (ev.target === el || ev.target.classList.contains('mm__x')) closePop(); });
 
   const fill = () => {
-    const m = shown.find(x => String(x.key || x.court) === key) || first;
+    let m = key ? (shown.find(x => String(x.key || x.court) === key) || first)
+      : (shown.find(x => first && String(x.key || x.court) === String(first.key || first.court)) || first);
+    if (!m) m = { players: [sm.p1, sm.p2].map(p => p ? { name: p.name, dept: p.club } : {}), tournament: sc.tournament, round: sm.round, court: sm.court,
+      score: [0, 0], games_won: [0, 0], games: [], done: sm.status === 'done', _sched: true, _status: sm.status, _result: sm.score };
     const p = m.players || [], sc2 = m.score || [0, 0], gw = m.games_won || [0, 0];
     const games = (m.games || []).map((g, n) => `G${n + 1} ${g[0]}–${g[1]}`).join(' · ');
     el.querySelector('#lpTour').textContent = m.tournament || (sc && sc.tournament) || '';
     el.querySelector('#lpEvent').textContent = [sc && sc.event, m.round || (sm && sm.round)].filter(Boolean).join(' · ');
     el.querySelector('#lpVs').innerHTML = [0, 1].map(i => `<span>${esc(p[i]?.name || '')}${p[i]?.dept ? ` <em>${esc(p[i].dept)}</em>` : ''}</span>`).join('<em>v</em>');
-    el.querySelector('#lpScore').innerHTML = `<span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished' : 'Live'}</span>
+    el.querySelector('#lpScore').innerHTML = m._sched ? (m._status === 'done'
+      ? `<span class="tag tag--done">Finished</span><div class="mm__pts"><b style="font-size:26px">${esc(m._result || '')}</b></div>`
+      : `<span class="tag">Not started yet</span>`) : `<span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished' : 'Live'}</span>
       <div class="mm__pts"><b>${esc(sc2[0])}</b><span>–</span><b>${esc(sc2[1])}</b></div>
       <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>`;
     el.querySelector('#lpList').innerHTML =
@@ -207,10 +219,16 @@ async function openPop(key) {
 
 document.addEventListener('click', e => {
   if (e.target.closest('[data-nopop]')) return;
+  const sr = e.target.closest('.sched__row[data-sid]');
+  if (sr) return openPop(null, sr.dataset.sid, sr.dataset.sm);
   const c = e.target.closest('.lm[data-k]');
   if (c) openPop(c.dataset.k);
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closePop();
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.lm[data-k]')) { e.preventDefault(); openPop(e.target.dataset.k); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.lm[data-k], .sched__row[data-sid]')) {
+    e.preventDefault();
+    const t = e.target;
+    t.dataset.k ? openPop(t.dataset.k) : openPop(null, t.dataset.sid, t.dataset.sm);
+  }
 });
