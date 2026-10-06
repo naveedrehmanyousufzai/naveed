@@ -237,8 +237,8 @@ async function entriesPanel(box) {
     ${shown.map(n => {
       const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
-      <table class="table plain-table"><thead><tr><th>Rank</th><th>Player</th><th>Association</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
-      ${rows.map(e => `<tr><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td>${isAdmin ? `<td style="white-space:nowrap"><button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button></td>` : ''}</tr>`).join('')}
+      <table class="table plain-table"><thead><tr><th>S.No</th><th>Rank</th><th>Player</th><th>Association</th><th>Category</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
+      ${rows.map((e, n) => `<tr><td>${n + 1}</td><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td><td>${esc(e.division || '')}</td>${isAdmin ? `<td style="white-space:nowrap"><button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button></td>` : ''}</tr>`).join('')}
       </tbody></table>`;
     }).join('')}`;
 }
@@ -261,9 +261,10 @@ document.addEventListener('click', async ev => {
     const p = findEntry(b.dataset.eedit); if (!p) return;
     const tr = b.closest('tr');
     const inp = (f, v, w) => `<input class="pad__name" data-f="${f}" value="${esc(v || '')}" style="width:${w}">`;
-    tr.innerHTML = `<td>${inp('rank', p.rank, '56px')}</td>
-      <td>${inp('name', p.name, '100%')}<br><select class="pad__name" data-f="division">${ENTRY_CATS.concat(ENTRY_CATS.includes(p.division) ? [] : [p.division]).map(c => `<option${c === p.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select> ${inp('country', p.country, '70px')}</td>
+    tr.innerHTML = `<td>${tr.firstElementChild.textContent}</td><td>${inp('rank', p.rank, '56px')}</td>
+      <td>${inp('name', p.name, '100%')}<br>${inp('country', p.country, '100px')}</td>
       <td>${inp('club', p.club, '100%')}</td>
+      <td><select class="pad__name" data-f="division">${ENTRY_CATS.concat(ENTRY_CATS.includes(p.division) ? [] : [p.division]).map(c => `<option${c === p.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
       <td style="white-space:nowrap"><button class="btn btn--solid" data-esave="${esc(p.id)}">Save</button> <button class="btn btn--ghost" data-ecancel>Cancel</button></td>`;
     return;
   }
@@ -515,9 +516,9 @@ function renderImport() {
   if (!importRows.length) { box.innerHTML = '<p class="pad__empty">No players found. Choose the columns below, or use the template.</p>' + mapUI(); return; }
   const missing = importRows.filter(r => r.include && !r.division).length;
   box.innerHTML = mapUI() + `<p class="pad__intro">${importRows.length} players found. Check each one, then import.</p>
-    <table class="table plain-table"><thead><tr><th>Add</th><th>Rank</th><th>Name</th><th>Association</th><th>Category</th></tr></thead><tbody>
+    <table class="table plain-table"><thead><tr><th>Add</th><th>S.No</th><th>Rank</th><th>Name</th><th>Association</th><th>Category</th></tr></thead><tbody>
     ${importRows.map((r, i) => `<tr><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include ? 'checked' : ''}></td>
-      <td>${esc(r.rank || '–')}</td><td>${esc(r.name)}</td><td>${esc(r.club)}</td>
+      <td>${i + 1}</td><td>${esc(r.rank || '–')}</td><td>${esc(r.name)}</td><td>${esc(r.club)}</td>
       <td><select class="pad__name" data-i="${i}" data-f="division"><option value="">— choose —</option>${ENTRY_CATS.map(c => `<option${c === r.division ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></td></tr>`).join('')}
     </tbody></table>
     <button class="btn btn--solid" id="entImport" ${missing ? 'disabled' : ''}>Import ${importRows.filter(r => r.include).length} players</button>
