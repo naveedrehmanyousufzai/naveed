@@ -141,9 +141,14 @@ function normCategory0(text) {
       <span class="pad__publish-state" id="rkState">${missing ? missing + ' still need a category.' : ''}</span>`;
   }
 
-  async function save(players) {
-    const r = await fetch('/api/rankings', { method: 'POST', headers: headers(), body: JSON.stringify({ players }) });
+  async function save(players, manualCats) {
+    const body = { players };
+    if (manualCats) body.manualCats = manualCats;
+    const r = await fetch('/api/rankings', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Sign in as organiser first.' : 'Could not save.');
+  }
+  async function existingCats() {
+    try { const r = await fetch('/api/rankings', { cache: 'no-store' }); return r.ok ? (await r.json()).manualCats || [] : []; } catch { return []; }
   }
   async function existing() {
     try { const r = await fetch('/api/rankings', { cache: 'no-store' }); return r.ok ? (await r.json()).players || [] : []; } catch { return []; }
@@ -181,13 +186,13 @@ function normCategory0(text) {
       const cats = new Set(mine.map(p => p.category));
       try {
         const keep = (await existing()).filter(p => !cats.has(p.category));   // earlier imports for other categories stay
-        await save(keep.concat(mine)); rows = []; $('rkPreview').hidden = true;
+        await save(keep.concat(mine), [...new Set((await existingCats()).concat([...cats]))]); rows = []; $('rkPreview').hidden = true;
         await window.reloadRankings();
       } catch (err) { st.textContent = err.message; }
     }
     if (id === 'rkClear') {
       if (!confirm('Remove all imported rankings and go back to the ones saved in the site files?')) return;
-      try { await save([]); await window.reloadRankings(); } catch (err) { alert(err.message); }
+      try { await save([], []); await window.reloadRankings(); } catch (err) { alert(err.message); }
     }
   });
 
@@ -224,14 +229,15 @@ function normCategory0(text) {
       table.querySelectorAll('tbody tr').forEach((tr, i) => tr.insertAdjacentHTML('beforeend',
         `<td style="white-space:nowrap"><button class="ent-edit" data-rkedit="${i}" aria-label="Edit">\u270e</button><button class="ent-del" data-rkdel="${i}" aria-label="Remove">\u00d7</button></td>`));
     }
-    root.insertAdjacentHTML('beforeend', '<p><button class="btn btn--ghost" id="rkAddRow">Add player</button> <span class="pad__publish-state" id="rkEditState"></span></p>');
+    root.insertAdjacentHTML('beforeend', '<p><button class="btn btn--ghost" id="rkAddRow">Add player</button> <button class="btn btn--ghost" id="rkReset" hidden>Reset to the ranking worked out from results</button> <span class="pad__publish-state" id="rkEditState"></span></p>');
+    existingCats().then(c => { const b = $('rkReset'); if (b && c.includes(cat)) b.hidden = false; });
   };
   async function saveCategory(cat, list) {
     const clean = list.map(p => ({ category: cat, rank: String(p.rank || '').trim(), name: String(p.name || '').trim(), club: String(p.club || '').trim(), points: String(p.points || '').trim() }))
       .filter(p => p.name)
       .sort((x, y) => (Number(x.rank) || 9999) - (Number(y.rank) || 9999));
     const keep = (await existing()).filter(p => p.category !== cat);
-    await save(keep.concat(clean));
+    await save(keep.concat(clean), [...new Set((await existingCats()).concat([cat]))]);
     await window.reloadRankings();
   }
   const curCat = () => ((document.querySelector('#catFilters .chip--on') || {}).dataset || {}).c || '';
@@ -247,6 +253,13 @@ function normCategory0(text) {
       const tr = t.closest('tr'); tr.innerHTML = editRow(rows[Number(t.dataset.rkedit)], t.dataset.rkedit);
     } else if (t.dataset.rkcancel) {
       window.reloadRankings();
+    } else if (t.id === 'rkReset') {
+      if (!confirm('Throw away the manual changes to ' + cat + ' and use the ranking worked out from results?')) return;
+      try {
+        const keep = (await existing()).filter(p => p.category !== cat);
+        await save(keep, (await existingCats()).filter(c => c !== cat));
+        await window.reloadRankings();
+      } catch (err) { fail(err); }
     } else if (t.id === 'rkAddRow') {
       const tb = document.querySelector('#rankings-root tbody');
       tb.insertAdjacentHTML('beforeend', '<tr>' + editRow({ rank: String(rows.length + 1), name: '', club: '', points: '' }, 'new') + '</tr>');

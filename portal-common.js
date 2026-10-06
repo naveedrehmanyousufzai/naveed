@@ -124,15 +124,16 @@
   async function loadRankings() {
     const base = await load('rankings');
     let extra = [];
+    let manual = new Set();
     try {
       const r = await fetch('/api/rankings', { cache: 'no-store' });
-      if (r.ok) extra = (await r.json()).players || [];
+      if (r.ok) { const d = await r.json(); extra = d.players || []; manual = new Set(d.manualCats || []); }
     } catch { /* file only */ }
     /* categories worked out from finishing positions replace the others */
     try {
       const r = await fetch('/api/rankpoints', { cache: 'no-store' });
       if (r.ok) {
-        const computed = computeRanking(await r.json());
+        const computed = computeRanking(await r.json()).filter(p => !manual.has(p.category));
         if (computed.length) {
           const cc = new Set(computed.map(p => p.category));
           extra = extra.filter(p => !cc.has(p.category)).concat(computed);
