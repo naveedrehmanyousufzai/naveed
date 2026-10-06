@@ -21,12 +21,13 @@ function renderTable() {
   root.innerHTML = `
   <h2 class="rk-title">${esc(cat)}</h2>
   <table class="table rk-table">
-    <thead><tr><th>Rank</th><th>Player</th><th>Club</th><th>Points</th></tr></thead>
+    <thead><tr><th>Rank</th><th>Player</th><th>Club</th>${rows.some(p => p.played) ? '<th>Events</th>' : ''}<th>Points</th></tr></thead>
     <tbody>
       ${rows.map(p => `<tr>
         <td class="rk-table__rank">${esc(p.rank)}</td>
         <td>${esc(p.name)}</td>
         <td class="rk-table__club">${esc(p.club || '')}</td>
+        ${rows.some(x => x.played) ? `<td>${esc(p.played || '')}</td>` : ''}
         <td class="rk-table__pts">${esc(p.points || '')}</td>
       </tr>`).join('')}
     </tbody>

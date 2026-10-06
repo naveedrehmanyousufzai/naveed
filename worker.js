@@ -565,6 +565,31 @@ async function rankingsRoute(request, env) {
 }
 
 
+/* ---------- Ranking points: finishing positions of each event, plus the points
+   settings. The rankings page works the tables out from this.
+   GET  /api/rankpoints   public
+   POST /api/rankpoints   organiser, {config, tlevels, events} ---------- */
+async function rankpointsRoute(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (!env.DRAW_KV) return fail("Storage is not connected yet.", 503);
+  if (request.method === "GET") {
+    return json((await env.DRAW_KV.get("rankings:points")) || "{}");
+  }
+  if (request.method === "POST") {
+    const denied = needsPassword(request, env) || needsAdmin(request, env);
+    if (denied) return denied;
+    const text = await request.text();
+    if (text.length > 1500000) return fail("Too much data.", 413);
+    let b;
+    try { b = JSON.parse(text); } catch { return fail("Invalid JSON.", 400); }
+    if (!b || !Array.isArray(b.events)) return fail("No events given.", 400);
+    b.updated = Date.now();
+    await env.DRAW_KV.put("rankings:points", JSON.stringify(b));
+    return json(JSON.stringify({ ok: true, events: b.events.length }));
+  }
+  return fail("Method not allowed.", 405);
+}
+
 /* ---------- Scoresheets: finished matches, kept on the server so the organiser
    can open them from any device.
    POST   /api/scoresheets        any signed-in referee, the full record
@@ -768,6 +793,7 @@ export default {
     if (path === "/api/results") return resultsRoute(request, env);
     if (path === "/api/tournaments") return tournamentsRoute(request, env);
     if (path === "/api/rankings") return rankingsRoute(request, env);
+    if (path === "/api/rankpoints") return rankpointsRoute(request, env);
     if (path === "/api/sheet") return sheetRoute(request, env);
     if (path === "/api/scoresheets") return scoresheetsRoute(request, env);
     if (path === "/api/respic") return respicRoute(request, env);

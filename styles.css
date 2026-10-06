@@ -1768,3 +1768,15 @@ a.tt__row strong { text-decoration: none; }
 .sheet-login .pad__name { max-width: 220px; }
 .dm-del { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .dm-del [hidden] { display: none !important; }
+
+/* 49. Rankings from finishing positions (organiser) */
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.rp-t { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 18px 0 8px; }
+.rp-t select { width: auto; }
+.rp-ev { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--hairline); padding: 10px 0; }
+.rp-ev--off { opacity: .55; }
+.rp-ev .pad__name { width: 200px; }
+.rp-ev__meta { color: var(--ash); font-size: var(--t-sm); flex: 1; min-width: 160px; }
+.rp-res { width: 100%; margin: 6px 0; }
+.rp-res .pad__name { width: 100%; min-width: 70px; }
+.rp-ev .rp-res, .rp-ev > button[data-addr] { flex-basis: 100%; }
