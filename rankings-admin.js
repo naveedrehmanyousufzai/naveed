@@ -118,6 +118,7 @@ function normCategory0(text) {
       <input type="file" id="rkFile" accept=".docx,.xlsx,.xls,.csv" hidden>
       <button class="btn btn--ghost" id="rkSheetBtn" type="button">Import Google Sheet</button>
       <button class="btn btn--ghost" id="rkClear" type="button">Remove imported rankings</button>
+      <button class="btn btn--ghost" id="rkSample" type="button">Remove the sample players</button>
     </div>
     <form class="res-admin__box" id="rkSheetForm" hidden>
       <label class="pad__field"><span>Google Sheet link (share it as "Anyone with the link can view"; the tab you have open is read)</span><input class="pad__name" name="url" placeholder="https://docs.google.com/spreadsheets/d/…" required></label>
@@ -141,9 +142,10 @@ function normCategory0(text) {
       <span class="pad__publish-state" id="rkState">${missing ? missing + ' still need a category.' : ''}</span>`;
   }
 
-  async function save(players, manualCats) {
+  async function save(players, manualCats, hideFile) {
     const body = { players };
     if (manualCats) body.manualCats = manualCats;
+    if (hideFile !== undefined) body.hideFile = hideFile;
     const r = await fetch('/api/rankings', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Sign in as organiser first.' : 'Could not save.');
   }
@@ -245,6 +247,11 @@ function normCategory0(text) {
   const fail = err => { const s = $('rkEditState'); if (s) s.textContent = err.message; else alert(err.message); };
 
   document.addEventListener('click', async ev => {
+    if (ev.target.id === 'rkSample') {
+      if (!confirm('Remove all the sample players from every ranking? Rankings you imported or worked out from results stay.')) return;
+      try { await save(await existing(), undefined, true); await window.reloadRankings(); } catch (err) { alert(err.message); }
+      return;
+    }
     if (!on) return;
     const t = ev.target.closest('button'); if (!t) return;
     const rows = (window.rankingsRows || []).map(p => ({ ...p }));

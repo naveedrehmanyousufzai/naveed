@@ -125,9 +125,10 @@
     const base = await load('rankings');
     let extra = [];
     let manual = new Set();
+    let hideFile = false;
     try {
       const r = await fetch('/api/rankings', { cache: 'no-store' });
-      if (r.ok) { const d = await r.json(); extra = d.players || []; manual = new Set(d.manualCats || []); }
+      if (r.ok) { const d = await r.json(); extra = d.players || []; manual = new Set(d.manualCats || []); hideFile = !!d.hideFile; }
     } catch { /* file only */ }
     /* categories worked out from finishing positions replace the others */
     try {
@@ -140,11 +141,13 @@
         }
       }
     } catch { /* optional */ }
-    if (!extra.length) return base;
-    const over = new Set(extra.map(p => p.category));
+    /* sample players removed by the organiser; a category emptied by hand stays empty */
+    const fileRows = hideFile ? [] : (base.players || []);
+    if (!extra.length) return { ...base, players: fileRows.filter(p => !manual.has(p.category)) };
+    const over = new Set(extra.map(p => p.category).concat([...manual]));
     const categories = (base.categories || []).slice();
     over.forEach(c => { if (!categories.includes(c)) categories.push(c); });
-    return { ...base, categories, players: (base.players || []).filter(p => !over.has(p.category)).concat(extra), imported: over };
+    return { ...base, categories, players: fileRows.filter(p => !over.has(p.category)).concat(extra), imported: over };
   }
 
   /* The file's tournaments with the organiser's changes made on the page */

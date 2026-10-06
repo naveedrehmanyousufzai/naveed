@@ -547,7 +547,7 @@ async function rankingsRoute(request, env) {
   if (request.method === "GET") {
     const raw = await env.DRAW_KV.get("rankings:imported");
     const d = raw ? JSON.parse(raw) : {};
-    return json(JSON.stringify({ players: d.players || [], manualCats: d.manualCats || [] }));
+    return json(JSON.stringify({ players: d.players || [], manualCats: d.manualCats || [], hideFile: !!d.hideFile }));
   }
   if (request.method === "POST") {
     const denied = needsPassword(request, env) || needsAdmin(request, env);
@@ -563,7 +563,8 @@ async function rankingsRoute(request, env) {
     const oldRaw = await env.DRAW_KV.get("rankings:imported");
     const oldCats = oldRaw ? (JSON.parse(oldRaw).manualCats || []) : [];
     const manualCats = (Array.isArray(b.manualCats) ? b.manualCats : oldCats).map(c => s(c, 40)).filter(Boolean).slice(0, 100);
-    await env.DRAW_KV.put("rankings:imported", JSON.stringify({ players, manualCats, updated: Date.now() }));
+    const hideFile = typeof b.hideFile === "boolean" ? b.hideFile : (oldRaw ? !!JSON.parse(oldRaw).hideFile : false);
+    await env.DRAW_KV.put("rankings:imported", JSON.stringify({ players, manualCats, hideFile, updated: Date.now() }));
     return json(JSON.stringify({ ok: true, count: players.length }));
   }
   return fail("Method not allowed.", 405);

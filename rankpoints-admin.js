@@ -188,16 +188,17 @@
   /* What a cell says -> the position it means. Round N depends on the size of the draw:
      the deepest "Round N" in the column comes just before the quarter-finals. */
   function posFromText(text, maxRound) {
-    const t = String(text || '').trim().toLowerCase().replace(/[._-]/g, ' ').replace(/\s+/g, ' ');
+    let t = String(text || '').trim().toLowerCase().replace(/[._\-\u2013\u2014]/g, ' ').replace(/\s+/g, ' ');
     if (!t) return 0;
+    t = t.replace(/\b(lost|lost in|out in|reached|exit|exited|eliminated|in the|the)\b/g, ' ').replace(/\bfinalists?\b/g, 'final').replace(/\s+/g, ' ').trim();
     if (/^\d+$/.test(t)) return Number(t);
-    if (/^(winner|champion|won|1st|first|gold)$/.test(t)) return 1;
-    if (/^(runner ?up|finalist|final|2nd|second|silver|lost final)$/.test(t)) return 2;
-    if (/^(semi ?finals?|semis?|sf|3rd|third|4th|fourth|bronze)$/.test(t)) return 3;
-    if (/^(quarter ?finals?|quarters?|qf)$/.test(t)) return 5;
-    if (/(round of|last) ?16|^r ?16$/.test(t)) return 9;
-    if (/(round of|last) ?32|^r ?32$/.test(t)) return 17;
-    if (/(round of|last) ?64|^r ?64$/.test(t)) return 33;
+    if (/^(winner|winners|champion|won|1st|first|gold|1st place)$/.test(t)) return 1;
+    if (/^(runner ?ups?|final|2nd|second|silver|2nd place)$/.test(t)) return 2;
+    if (/^(semi ?finals?|semis?|sf|3rd|third|4th|fourth|bronze|last 4|top 4|3rd place)$/.test(t)) return 3;
+    if (/^(quarter ?finals?|quarters?|qf|last 8|top 8|1 4 final|1 4)$/.test(t)) return 5;
+    if (/^((round of|round|last|top|r|1 8 final|1 8) ?16)$/.test(t) || /^1 8( final)?$/.test(t)) return 9;
+    if (/^((round of|round|last|top|r) ?32)$/.test(t) || /^1 16( final)?$/.test(t)) return 17;
+    if (/^((round of|round|last|top|r) ?64)$/.test(t) || /^1 32( final)?$/.test(t)) return 33;
     const m = t.match(/^(?:round|rd|r)\s*(\d+)$/);
     if (m && maxRound) return Math.pow(2, (maxRound + 3) - Number(m[1])) + 1;
     return 0;
@@ -218,6 +219,10 @@
   /* One sheet -> one or more groups (a group = one category). The category comes from a
      "Category" column if there is one, otherwise from the sheet's name. */
   function parseSheet(name, rows) {
+    /* the heading row is the first one with a "Name" cell (there may be title rows above it) */
+    let hr = rows.findIndex((r, i) => i < 15 && r.some(c => /^(names?|players?|athletes?)$/i.test(String(c ?? '').trim())));
+    if (hr < 0) hr = 0;
+    rows = rows.slice(hr);
     const head = (rows[0] || []).map(h => String(h ?? ''));
     const find = re => head.findIndex(h => re.test(h.trim()));
     let ci = find(/^(category|categories|division|event|class)$/i);
@@ -227,8 +232,10 @@
     head.forEach((h, j) => { if (j !== ci && j !== ni && j !== ai && h.trim()) tcols.push(j); });
     const body = rows.slice(1).filter(r => String(r[ni] ?? '').trim());
     const byCat = new Map();
+    let lastCat = '';
     body.forEach(r => {
-      const raw = ci >= 0 ? String(r[ci] ?? '').trim() : '';
+      let raw = ci >= 0 ? String(r[ci] ?? '').trim() : '';
+      if (ci >= 0) { if (raw) lastCat = raw; else raw = lastCat; }   // merged / blank cells carry the category down
       const cat = ci >= 0 ? (normCat(raw) || raw) : normCat(name);
       if (!byCat.has(cat)) byCat.set(cat, []);
       byCat.get(cat).push(r);
