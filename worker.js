@@ -244,7 +244,8 @@ async function liveRoute(request, env) {
     for (const m of await readAll(null)) {
       if (m.key === key) continue;
       const samePad = match.pad_id && m.pad_id === match.pad_id;
-      if (samePad || (!match.done && m.court === court && m.done)) {
+      const sameMatch = match.match_id && m.match_id === match.match_id && m.sched_id === match.sched_id;
+      if (samePad || sameMatch || (!match.done && m.court === court && m.done)) {
         await env.DRAW_KV.delete(LIVE_PREFIX + m.key);
       }
     }

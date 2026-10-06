@@ -26,7 +26,7 @@ const PAD_WARMUP_MS = 5 * 60 * 1000;   // 5 minutes, half on each side
 const PAD_REST_MS = 90 * 1000;         // rest between games
 const PAD_REVIEWS = 2;                 // video reviews per player per game
 
-const PAD_ID = Math.random().toString(36).slice(2, 10);
+let PAD_ID = Math.random().toString(36).slice(2, 10);
 let pad = null;
 let padLive = false;       // publishing to the site?
 let padTimer = null;       // debounce handle for publishing
@@ -717,7 +717,37 @@ function padRenderAnnounce() {
   root.classList.toggle('pad--play', pad.phase === 'play' || (!!pad.matchId && pad.phase !== 'ready'));
 }
 
+/* The match in progress is kept on this device, so closing the tab or
+   visiting another page does not lose it. */
+const PAD_KEEP = 'nr-pad-active';
+const PAD_FIELDS = ['padCourt', 'padTournament', 'padRound', 'padName0', 'padDept0', 'padCountry0', 'padName1', 'padDept1', 'padCountry1'];
+function padSave() {
+  try {
+    if (!pad) return;
+    const fields = {};
+    PAD_FIELDS.forEach(f => { const el = document.getElementById(f); if (el) fields[f] = el.value; });
+    localStorage.setItem(PAD_KEEP, JSON.stringify({
+      pad, fields, padId: PAD_ID, touched: padTouched,
+      who: sessionStorage.getItem(NAME_KEY) || '', at: Date.now()
+    }));
+  } catch { /* storage full or blocked — scoring carries on */ }
+}
+function padRestore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(PAD_KEEP) || 'null');
+    if (!s || !s.pad || Date.now() - s.at > 12 * 3600 * 1000) return false;
+    const me = sessionStorage.getItem(NAME_KEY) || '';
+    if (s.who && me && s.who !== me) return false;
+    pad = Object.assign(padFresh(), s.pad, { history: s.pad.history || [] });
+    PAD_ID = s.padId || PAD_ID;
+    padTouched = true;
+    Object.entries(s.fields || {}).forEach(([f, v]) => { const el = document.getElementById(f); if (el) el.value = v; });
+    return true;
+  } catch { return false; }
+}
+
 function padRender() {
+  padSave();
   const names = padNames();
   const won = padGamesWon();
 
@@ -792,6 +822,7 @@ function padAct(act) {
 function padInit() {
   if (!document.getElementById('padSide0')) return;
   pad = padFresh();
+  const restored = padRestore();
 
   document.querySelectorAll('.pad__side').forEach(btn => {
     btn.addEventListener('click', () => padPoint(Number(btn.dataset.player)));

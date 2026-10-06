@@ -31,7 +31,7 @@ function card(m) {
     .map((g, n) => `<li><b>G${n + 1}</b> ${esc(g[0])}–${esc(g[1])}</li>`).join('');
 
   return `
-  <article class="lm">
+  <article class="lm" data-k="${esc(m.key || m.court)}" tabindex="0" role="button" title="Match details">
     <header class="lm__head">
       <span class="lm__court">Court ${esc(m.court)}</span>
       <span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished'
@@ -47,11 +47,13 @@ function card(m) {
     </div>
     ${side(1)}
 
-    <a class="lm__open" href="scoreboard.html?court=${encodeURIComponent(m.court)}">
+    <a class="lm__open" data-nopop href="scoreboard.html?court=${encodeURIComponent(m.court)}">
       Open full screen
     </a>
   </article>`;
 }
+
+let shown = [];
 
 function render(list) {
   const root = document.getElementById('live-grid');
@@ -74,8 +76,16 @@ async function poll() {
     const res = await fetch('/api/live', { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const fresh = (data.matches || []).filter(m =>
-      m && m.updated && (Date.now() - m.updated < STALE_MS));
+    const seen = new Map();
+    (data.matches || []).filter(m => m && m.updated && (Date.now() - m.updated < STALE_MS))
+      .forEach(m => {
+        /* the same match published twice shows once — the newest wins */
+        const k = m.match_id && m.sched_id ? m.sched_id + '|' + m.match_id
+          : (m.players || []).map(p => String(p && p.name || '').toLowerCase()).join('|') + '|' + m.court;
+        if (!seen.has(k) || (seen.get(k).updated || 0) < m.updated) seen.set(k, m);
+      });
+    const fresh = [...seen.values()];
+    shown = fresh;
     render(fresh);
   } catch (err) {
     const root = document.getElementById('live-grid');
@@ -126,3 +136,81 @@ async function loadSchedule() {
 }
 loadSchedule();
 setInterval(loadSchedule, 30000);
+
+
+/* ---------- Match details popup (time, court, referee from the schedule) ---------- */
+let schedCache = { at: 0, list: [] };
+async function schedules() {
+  if (Date.now() - schedCache.at < 30000) return schedCache.list;
+  try {
+    const r = await fetch('/api/schedule', { cache: 'no-store' });
+    if (r.ok) schedCache = { at: Date.now(), list: (await r.json()).schedules || [] };
+  } catch { /* use the last list */ }
+  return schedCache.list;
+}
+const lc = s => String(s || '').trim().toLowerCase();
+const lmClock = t => {
+  if (!t) return '';
+  const d = new Date(t);
+  if (isNaN(d)) return '';
+  const day = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return String(t).includes('T') ? day + ', ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : day;
+};
+
+let lmTimer = null;
+function closePop() { clearInterval(lmTimer); document.querySelectorAll('.mm--live').forEach(e => e.remove()); }
+
+async function openPop(key) {
+  const first = shown.find(m => String(m.key || m.court) === key);
+  if (!first) return;
+  closePop();
+  const list = await schedules();
+  let sc = null, sm = null;
+  for (const s of list) {
+    const f = (s.matches || []).find(x =>
+      (first.match_id && s.id === first.sched_id && String(x.id) === String(first.match_id)) ||
+      (x.p1 && x.p2 && first.players && first.players[0] && lc(x.p1.name) === lc(first.players[0].name) && lc(x.p2.name) === lc(first.players[1] && first.players[1].name)));
+    if (f) { sc = s; sm = f; break; }
+  }
+  const tbd = '<span class="mm__tbd">To be announced</span>';
+  const row = (k, v) => `<div class="mm__row"><dt>${k}</dt><dd>${v ? esc(v) : tbd}</dd></div>`;
+  const el = document.createElement('div');
+  el.className = 'mm mm--live';
+  el.innerHTML = `<div class="mm__card" role="dialog" aria-modal="true" aria-label="Match details">
+    <button class="mm__x" aria-label="Close">\u00d7</button>
+    <p class="mm__tour" id="lpTour"></p><p class="mm__event" id="lpEvent"></p>
+    <div class="mm__vs" id="lpVs"></div>
+    <div class="mm__live" id="lpScore"></div>
+    <dl class="mm__list" id="lpList"></dl>
+  </div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', ev => { if (ev.target === el || ev.target.classList.contains('mm__x')) closePop(); });
+
+  const fill = () => {
+    const m = shown.find(x => String(x.key || x.court) === key) || first;
+    const p = m.players || [], sc2 = m.score || [0, 0], gw = m.games_won || [0, 0];
+    const games = (m.games || []).map((g, n) => `G${n + 1} ${g[0]}–${g[1]}`).join(' · ');
+    el.querySelector('#lpTour').textContent = m.tournament || (sc && sc.tournament) || '';
+    el.querySelector('#lpEvent').textContent = [sc && sc.event, m.round || (sm && sm.round)].filter(Boolean).join(' · ');
+    el.querySelector('#lpVs').innerHTML = [0, 1].map(i => `<span>${esc(p[i]?.name || '')}${p[i]?.dept ? ` <em>${esc(p[i].dept)}</em>` : ''}</span>`).join('<em>v</em>');
+    el.querySelector('#lpScore').innerHTML = `<span class="${m.done ? 'tag tag--done' : 'tag tag--live'}">${m.done ? 'Finished' : 'Live'}</span>
+      <div class="mm__pts"><b>${esc(sc2[0])}</b><span>–</span><b>${esc(sc2[1])}</b></div>
+      <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>`;
+    el.querySelector('#lpList').innerHTML =
+      row('Scheduled', sm && lmClock(sm.time)) +
+      row('Court', (sm && sm.court) || m.court ? 'Court ' + ((sm && sm.court) || m.court) : '') +
+      row('Referee', (sm && sm.referee) || m.referee);
+  };
+  fill();
+  lmTimer = setInterval(fill, 3000);
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-nopop]')) return;
+  const c = e.target.closest('.lm[data-k]');
+  if (c) openPop(c.dataset.k);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePop();
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.lm[data-k]')) { e.preventDefault(); openPop(e.target.dataset.k); }
+});

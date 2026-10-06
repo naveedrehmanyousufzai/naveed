@@ -1170,7 +1170,7 @@ html { scroll-behavior: smooth; }
 
 /* ---------- 28. Live matches page (live.html) ---------- */
 .lm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-.lm { background: var(--card); border: 1px solid var(--hairline); padding: 22px; }
+.lm { cursor: pointer; background: var(--card); border: 1px solid var(--hairline); padding: 22px; }
 .lm__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .lm__court { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: var(--t-lg); }
 .lm__event { font-size: var(--t-xs); color: var(--ash); margin-bottom: 18px; }
