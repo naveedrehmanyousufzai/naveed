@@ -767,6 +767,7 @@ function openMatchPopup(sid, mid) {
       ${row('Court', m.court ? 'Court ' + m.court : '')}
       ${m.referee ? row('Referee', m.referee) : ''}
       ${m.status === 'done' && m.score ? row('Result', m.score) : ''}
+      ${m.duration ? row('Match duration', (ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60); return h ? h + 'h ' + String(mi).padStart(2, '0') + 'm' : Math.max(1, Math.round(s / 60)) + ' min'; })(m.duration)) : (m.status === 'live' && m.started ? row('Playing for', (ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60); return h ? h + 'h ' + String(mi).padStart(2, '0') + 'm' : Math.max(1, Math.round(s / 60)) + ' min'; })(Date.now() - m.started)) : '')}
     </dl>
   </div>`;
   document.body.appendChild(el);

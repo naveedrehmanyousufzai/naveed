@@ -208,6 +208,7 @@
         ${row('Venue', venue)}
         ${row('Referee', sm.referee)}
         ${row('Status', status)}
+        ${sm.duration ? row('Match duration', (ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60); return h ? h + 'h ' + String(mi).padStart(2, '0') + 'm' : Math.max(1, Math.round(s / 60)) + ' min'; })(sm.duration)) : ''}
       </dl>${form}</div>`;
     const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = e => { if (e.key === 'Escape') close(); };

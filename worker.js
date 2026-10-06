@@ -366,11 +366,14 @@ async function resultRoute(request, env) {
 
   if (r.status === "live") {
     if (m.status !== "done") m.status = "live";
+    if (Number(r.started) > 0 && !m.started) m.started = Number(r.started);
   } else if (r.status === "done" && (r.winner === 0 || r.winner === 1)) {
     m.status = "done";
     m.winner = r.winner;
     m.score = String(r.score || "").slice(0, 80);
     m.finished = Date.now();
+    const st = Number(r.started) || m.started || 0, en = Number(r.ended) || m.finished;
+    if (st > 0 && en > st && en - st < 12 * 3600 * 1000) { m.started = st; m.duration = en - st; }
     const draw = await readJSON(env, DRAW_PREFIX + sid);
     advance(sched, m, draw);
     if (draw) await env.DRAW_KV.put(DRAW_PREFIX + sid, JSON.stringify(draw));

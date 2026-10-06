@@ -1024,10 +1024,10 @@ async function padReport(body) {
     });
   } catch (err) { console.warn('Could not report the result:', err); }
 }
-const padReportLive = () => padReport({ status: 'live' });
+const padReportLive = () => padReport({ status: 'live', started: pad.started });
 async function padReportResult(winner) {
   const score = padScoreString();
-  await padReport({ status: 'done', winner, score });
+  await padReport({ status: 'done', winner, score, started: pad.started, ended: pad.endedAt || Date.now() });
   loadMine();
 }
 

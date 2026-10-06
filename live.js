@@ -221,6 +221,7 @@ async function openPop(key, sid, mid) {
       <p>Games ${esc(gw[0])}–${esc(gw[1])}${games ? ' · ' + esc(games) : ''}</p>`;
     el.querySelector('#lpList').innerHTML =
       row('Scheduled', sm && lmClock(sm.time)) +
+      (sm && sm.duration && !m.started ? row('Match duration', (ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60); return h ? h + 'h ' + String(mi).padStart(2, '0') + 'm' : Math.max(1, Math.round(s / 60)) + ' min'; })(sm.duration)) : '') +
       (m.started ? row('Duration', lmDur(m)) : '') +
       (m.started ? row('Started', new Date(m.started).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '') +
       row('Court', (sm && sm.court) || m.court ? 'Court ' + ((sm && sm.court) || m.court) : '') +
