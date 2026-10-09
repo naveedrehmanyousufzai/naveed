@@ -235,7 +235,7 @@ async function entriesPanel(box) {
   box.innerHTML = `${admin}
     ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names, true)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
     ${shown.map(n => {
-      const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b) || String(a.name).localeCompare(b.name));
+      const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
       <table class="table plain-table"><thead><tr><th>S.No</th><th>Rank</th><th>Player</th><th>Association</th><th>Category</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>
       ${rows.map((e, n) => `<tr><td>${n + 1}</td><td>${esc(e.rank || '–')}</td><td>${esc(e.name)}${e.country ? ' <small>' + esc(e.country) + '</small>' : ''}</td><td>${esc(e.club || '')}</td><td>${esc(e.division || '')}</td>${isAdmin ? `<td style="white-space:nowrap"><button class="ent-edit" data-eedit="${esc(e.id)}" aria-label="Edit ${esc(e.name)}">\u270e</button><button class="ent-del" data-del="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">×</button></td>` : ''}</tr>`).join('')}

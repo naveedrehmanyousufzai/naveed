@@ -26,7 +26,7 @@ const drafts = {};                   // label -> { current, sched }
 let activeDraft = '';
 
 const rankOf = e => (Number(e.rank) > 0 ? Number(e.rank) : 1e9);
-const byRank = (a, b) => rankOf(a) - rankOf(b) || String(a.name).localeCompare(b.name);
+const byRank = (a, b) => rankOf(a) - rankOf(b);   // unranked players keep the order they were added in
 const ticked = () => CATS.filter(([c]) => $('cat_' + c) && $('cat_' + c).checked).map(c => c[1]);
 const mainSlots = () => Number($('dmSize').value) - Number($('dmWild').value);
 
