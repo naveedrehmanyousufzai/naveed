@@ -144,7 +144,7 @@ function blankDraws() {
   Object.keys(drafts).forEach(k => delete drafts[k]);
   Object.assign(drafts, made);
   showDraft(labels[0]);
-  ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = false; });
+  ['dmRedraw', 'dmPublish', 'dmPrint', 'dmPaperWrap'].forEach(id => { $(id).hidden = false; });
   $('dmRedraw').hidden = true;      // "draw again" makes no sense for an empty bracket
   say('Empty bracket ready. Click any place to type a player in, then set courts and times below.', 'good');
 }
@@ -235,7 +235,7 @@ function generate() {
   Object.keys(drafts).forEach(k => delete drafts[k]);
   Object.assign(drafts, made);
   showDraft(labels[0]);
-  ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = false; });
+  ['dmRedraw', 'dmPublish', 'dmPrint', 'dmPaperWrap'].forEach(id => { $(id).hidden = false; });
   say(`${labels.length} draw${labels.length === 1 ? '' : 's'} made. Set courts, times and referees below, then publish.`, 'good');
 }
 
@@ -434,7 +434,7 @@ function openPublished(i) {
   $('dmLogoPreview').src = logo; $('dmLogoPreview').hidden = !logo;
   Object.keys(drafts).forEach(k => delete drafts[k]);
   drafts[s.event || 'Draw'] = { current: null, sched: s };
-  ['dmRedraw', 'dmPublish', 'dmPrint'].forEach(id => { $(id).hidden = true; });
+  ['dmRedraw', 'dmPublish', 'dmPrint', 'dmPaperWrap'].forEach(id => { $(id).hidden = true; });
   showDraft(s.event || 'Draw');
   say('Opened the published draw. Change courts, times and referees below.', 'good');
 }
@@ -561,6 +561,44 @@ $('dmGenerate').addEventListener('click', generate);
 $('dmRedraw').addEventListener('click', generate);   // a fresh random draw
 $('dmPublish').addEventListener('click', publish);
 $('dmPrint').addEventListener('click', () => window.print());
+
+/* ---------- Print: the whole draw on ONE page ----------
+   Just before printing, work out the paper (A4 or Legal), pick portrait or landscape,
+   and shrink the bracket so everything fits on a single sheet. */
+const PAPER = { a4: [210, 297], legal: [216, 356] };
+const MARGIN_MM = 8;
+const MM_PX = 96 / 25.4;
+function fitStyle() {
+  const box = $('dmPreview');
+  const br = box && box.querySelector('.bracket, .groups');
+  if (!box || !br || !box.offsetParent) return null;
+  const hint = box.querySelector('.bracket__hint');
+  const W = Math.max(br.scrollWidth, box.scrollWidth);
+  const H = box.scrollHeight - (hint ? hint.offsetHeight + 30 : 0);
+  const [pw, ph] = PAPER[$('dmPaper').value] || PAPER.a4;
+  const best = [['portrait', pw, ph], ['landscape', ph, pw]].map(([o, w, h]) => {
+    const s = Math.min(((w - 2 * MARGIN_MM) * MM_PX) / W, ((h - 2 * MARGIN_MM) * MM_PX) / H);
+    return { o, s };
+  }).sort((a, b) => b.s - a.s)[0];
+  const scale = Math.min(best.s * 0.95, 1.4);
+  const st = document.createElement('style');
+  st.id = 'dmFitStyle';
+  st.textContent = `@media print {
+    @page { size: ${$('dmPaper').value === 'legal' ? 'legal' : 'A4'} ${best.o}; margin: ${MARGIN_MM}mm; }
+    html, body { height: auto !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+    #dmMain { padding: 0 !important; margin: 0 !important; max-width: none !important; width: auto !important; }
+    #dmPreview { zoom: ${scale.toFixed(4)}; width: ${Math.ceil(W)}px; break-inside: avoid; page-break-inside: avoid; }
+    #dmPreview .bracket, #dmPreview .groups { overflow: visible !important; padding-bottom: 0 !important; }
+    #dmPreview .bracket__hint { display: none !important; }
+  }`;
+  return st;
+}
+window.addEventListener('beforeprint', () => {
+  const old = document.getElementById('dmFitStyle'); if (old) old.remove();
+  const st = fitStyle(); if (st) document.head.appendChild(st);
+});
+window.addEventListener('afterprint', () => { const old = document.getElementById('dmFitStyle'); if (old) old.remove(); });
+window.dmFitStyle = fitStyle;
 
 /* Already signed in this session: check again, which also fetches the referee names. */
 if (sessionStorage.getItem(PASS_KEY)) signIn(sessionStorage.getItem(PASS_KEY));

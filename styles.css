@@ -1786,3 +1786,6 @@ a.tt__row strong { text-decoration: none; }
 .rp-imp h4 select { width: auto; }
 .rp-imp__col { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; }
 .rp-imp__col select { width: auto; }
+
+.dm-paper { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ash); }
+.dm-paper select { width: auto; }
