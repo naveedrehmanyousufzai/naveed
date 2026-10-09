@@ -233,7 +233,7 @@ async function entriesPanel(box) {
     </form>`;
 
   box.innerHTML = `${admin}
-    ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${divChips('entries', names, true)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
+    ${list.length ? `<p class="pad__intro">${list.length} player${list.length === 1 ? '' : 's'} entered, highest national rank first.</p>${isAdmin ? `<p class="ent-clear"><button class="btn btn--ghost" type="button" id="entClearCat">Remove this category’s list (${esc(cur)})</button> <button class="btn btn--ghost" type="button" id="entClearAll">Remove ALL entries</button></p>` : ''}${divChips('entries', names, true)}` : '<p class="pad__empty">No entries have been published yet.</p>'}
     ${shown.map(n => {
       const rows = list.filter(e => e.division === n).sort((a, b) => rankKey(a) - rankKey(b));
       return `<h3 class="tsec__h">${esc(n)} <small>${rows.length}</small></h3>
@@ -313,6 +313,26 @@ document.addEventListener('submit', async e => {
     country: f.get('country'), division, rank: f.get('rank') || null });
   try { await saveEntries(); divPick.entries = division; show(); }
   catch (err) { entryList.pop(); st.textContent = err.message; }
+});
+
+/* Remove a whole list: this category's, or every category's */
+document.addEventListener('click', async e => {
+  const id = e.target.id;
+  if (id !== 'entClearCat' && id !== 'entClearAll') return;
+  const all = id === 'entClearAll';
+  const cat = divPick.entries;
+  const n = (entryList || []).concat(cmsList()).filter(x => all || x.division === cat).length;
+  if (!n) return alert('Nothing to remove.');
+  if (!confirm(all ? `Remove ALL ${n} entries of this tournament, in every category? This cannot be undone.` : `Remove all ${n} entries in ${cat}? This cannot be undone.`)) return;
+  const keep = entryList;
+  try {
+    entryList = entryList.filter(x => !(all || x.division === cat));
+    try { await saveEntries(); } catch (err) { entryList = keep; throw err; }
+    if (cmsList().some(x => all || x.division === cat)) {
+      await saveCms(list => { for (let i = list.length - 1; i >= 0; i--) if (all || (list[i].division || 'Entries') === cat) list.splice(i, 1); });
+    }
+  } catch (err) { alert(err.message); }
+  show();
 });
 
 document.addEventListener('click', async e => {
